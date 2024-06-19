@@ -1,0 +1,7 @@
+env: 'local'
+grpc:
+    port: 4041
+    timeout: 4s
+storage:
+    connection_string: 'awsdawsd'
+    migration_path: 'awsdawsd'
