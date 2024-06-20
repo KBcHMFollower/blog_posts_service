@@ -5,8 +5,9 @@ import (
 
 	grpcapp "github.com/KBcHMFollower/test_plate_user_service/internal/app/grpc"
 	"github.com/KBcHMFollower/test_plate_user_service/internal/config"
-	postgresrepository "github.com/KBcHMFollower/test_plate_user_service/internal/repository/postgres"
-	postService "github.com/KBcHMFollower/test_plate_user_service/internal/servicces"
+	"github.com/KBcHMFollower/test_plate_user_service/internal/database"
+	"github.com/KBcHMFollower/test_plate_user_service/internal/repository"
+	postService "github.com/KBcHMFollower/test_plate_user_service/internal/services"
 )
 
 type App struct {
@@ -22,18 +23,23 @@ func New(
 		slog.String("op", op),
 	)
 
-	rep, err := postgresrepository.New(cfg.Storage.ConnectionString)
+	dbDriver, db, err := database.New(cfg.Storage.ConnectionString)
 	if err != nil {
 		appLog.Error("db connection error: ", err)
 		panic(err)
 	}
 
-	if err := rep.Migrate(cfg.Storage.MigrationPath); err != nil {
+	postRepository, err := repository.NewPostRepository(dbDriver)
+	if err != nil {
+		appLog.Error("TODO:", err)
+		panic(err)
+	}
+	if err := database.ForceMigrate(db, cfg.Storage.MigrationPath); err != nil {
 		appLog.Error("db migrate error: ", err)
 		panic(err)
 	}
 
-	postService := postService.New(rep, log)
+	postService := postService.New(postRepository, log)
 
 	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService)
 

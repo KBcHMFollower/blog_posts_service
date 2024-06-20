@@ -6,7 +6,7 @@ import (
 	"net"
 
 	grpcserver "github.com/KBcHMFollower/test_plate_user_service/internal/grpc"
-	postService "github.com/KBcHMFollower/test_plate_user_service/internal/servicces"
+	postService "github.com/KBcHMFollower/test_plate_user_service/internal/services"
 	"google.golang.org/grpc"
 )
 

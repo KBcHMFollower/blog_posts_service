@@ -10,11 +10,11 @@ import (
 )
 
 type PostService struct {
-	postRepository repository.PostRepository
+	postRepository repository.IPostRepository
 	log            *slog.Logger
 }
 
-func New(postRepository repository.PostRepository, log *slog.Logger) *PostService {
+func New(postRepository repository.IPostRepository, log *slog.Logger) *PostService {
 	return &PostService{
 		postRepository: postRepository,
 		log:            log,
