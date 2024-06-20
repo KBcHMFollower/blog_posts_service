@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/KBcHMFollower/test_plate_user_service/internal/app"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/config"
-	sloglogger "github.com/KBcHMFollower/test_plate_user_service/internal/logger/slog"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/app"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/config"
+	sloglogger "github.com/KBcHMFollower/test_plate_blog_service/internal/logger/slog"
 )
 
 func main() {

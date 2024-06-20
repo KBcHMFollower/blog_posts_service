@@ -3,11 +3,11 @@ package app
 import (
 	"log/slog"
 
-	grpcapp "github.com/KBcHMFollower/test_plate_user_service/internal/app/grpc"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/config"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/database"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/repository"
-	postService "github.com/KBcHMFollower/test_plate_user_service/internal/services"
+	grpcapp "github.com/KBcHMFollower/test_plate_blog_service/internal/app/grpc"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/config"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/database"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
+	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services"
 )
 
 type App struct {

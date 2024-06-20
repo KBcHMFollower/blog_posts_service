@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"net"
 
-	grpcserver "github.com/KBcHMFollower/test_plate_user_service/internal/grpc"
-	postService "github.com/KBcHMFollower/test_plate_user_service/internal/services"
+	grpcserver "github.com/KBcHMFollower/test_plate_blog_service/internal/grpc"
+	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services"
 	"google.golang.org/grpc"
 )
 

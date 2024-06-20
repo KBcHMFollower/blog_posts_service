@@ -3,8 +3,8 @@ package grpcserver
 import (
 	"context"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_user_service/internal/api/protos/gen"
-	postService "github.com/KBcHMFollower/test_plate_user_service/internal/services"
+	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/internal/api/protos/gen"
+	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services"
 	"google.golang.org/grpc"
 )
 

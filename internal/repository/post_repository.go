@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/KBcHMFollower/test_plate_user_service/internal/database"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/domain/models"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/lib/consts"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/database"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/domain/models"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/lib/consts"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"

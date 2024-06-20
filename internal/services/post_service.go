@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_user_service/internal/api/protos/gen"
-	"github.com/KBcHMFollower/test_plate_user_service/internal/repository"
+	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/internal/api/protos/gen"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
 	"github.com/google/uuid"
 )
 

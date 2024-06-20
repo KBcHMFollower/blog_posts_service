@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/KBcHMFollower/test_plate_user_service/internal/domain/models"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/domain/models"
 	"github.com/google/uuid"
 )
 

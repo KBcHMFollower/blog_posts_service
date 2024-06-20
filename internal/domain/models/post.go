@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_user_service/internal/api/protos/gen"
+	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/internal/api/protos/gen"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
