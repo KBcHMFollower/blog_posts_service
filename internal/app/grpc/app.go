@@ -16,7 +16,7 @@ type GRPCApp struct {
 	GRPCServer *grpc.Server
 }
 
-func New(port int, log *slog.Logger, postService postService.PostService) *GRPCApp {
+func New(port int, log *slog.Logger, postService *postService.PostService) *GRPCApp {
 	cleanGrpcServer := grpc.NewServer()
 	grpcserver.Register(cleanGrpcServer, postService)
 
@@ -33,7 +33,7 @@ func (g *GRPCApp) Run() error {
 		slog.String("op", op),
 	)
 
-	log.Info("Server is trying to get up")
+	log.Info("grpc server is trying to get up")
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", g.port))
 	if err != nil {
@@ -43,10 +43,8 @@ func (g *GRPCApp) Run() error {
 
 	if err := g.GRPCServer.Serve(l); err != nil {
 		log.Error("server startup error ", err)
-		return fmt.Errorf("error in starting server: %v", err)
+		return fmt.Errorf("error in starting grpc server: %v", err)
 	}
-
-	log.Info("Server is get up ", slog.Int("port", g.port))
 
 	return nil
 }

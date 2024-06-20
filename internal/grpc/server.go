@@ -11,10 +11,10 @@ import (
 
 type GPRCApp struct {
 	ssov1.UnimplementedBlogsServer
-	postService postService.PostService
+	postService *postService.PostService
 }
 
-func Register(server *grpc.Server, postService postService.PostService) {
+func Register(server *grpc.Server, postService *postService.PostService) {
 	ssov1.RegisterBlogsServer(server, &GPRCApp{postService: postService})
 }
 

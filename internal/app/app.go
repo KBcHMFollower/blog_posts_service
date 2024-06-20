@@ -25,11 +25,12 @@ func New(
 	rep, err := postgresrepository.New(cfg.Storage.ConnectionString)
 	if err != nil {
 		appLog.Error("db connection error: ", err)
+		panic(err)
 	}
 
-	postService := postService.New(rep)
+	postService := postService.New(rep, log)
 
-	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, *postService)
+	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService)
 
 	return &App{
 		GRPCServer: GRPCApp,

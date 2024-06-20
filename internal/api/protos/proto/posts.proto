@@ -23,6 +23,11 @@ message Post {
 	google.protobuf.Timestamp created_at = 6;
 }
 
+message UpdateItem{
+	string name = 1;
+	string value = 2;
+}
+
 message getPostRequest{
 	string id = 1;
 }
@@ -52,10 +57,7 @@ message deletePostResponse{
 
 message updatePostRequest{
 	string id = 1;
-	optional string user_id = 2;
-	optional string title = 3;
-	optional string textContent = 4;
-	optional string imagesContent = 5;
+	repeated UpdateItem update_data = 2;
 }
 
 message updatePostResponse{
