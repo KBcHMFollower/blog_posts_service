@@ -22,23 +22,37 @@ func (r *PostgresRepository) CreatePost(ctx context.Context, createData reposito
 	query := builder.
 		Insert("posts").
 		Columns("id", "user_id", "title", "text_content", "images_content", "created_at").
-		Values(post.Id, post.User_id, post.Title, post.TextContent, post.ImageContent, post.Created_at)
+		Values(post.Id, post.UserId, post.Title, post.TextContent, post.ImagesContent, post.CreatedAt).
+		Suffix("RETURNING \"id\"")
 
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	row := r.db.QueryRowContext(ctx, sql, args...)
+	var insertId string
+
+	idRow := r.db.QueryRowContext(ctx, sql, args...)
+
+	if err := idRow.Scan(&insertId); err != nil {
+		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
+	}
+
+	getSql, getArgs, err := builder.Select("*").From("posts").Where(squirrel.Eq{"id": insertId}).ToSql()
+	if err != nil {
+		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
+	}
+
+	row := r.db.QueryRowContext(ctx, getSql, getArgs...)
 
 	var createdPost models.Post
 	err = row.Scan(
 		&createdPost.Id,
-		&createdPost.User_id,
+		&createdPost.UserId,
 		&createdPost.Title,
 		&createdPost.TextContent,
-		&createdPost.ImageContent,
-		&createdPost.Created_at)
+		&createdPost.ImagesContent,
+		&createdPost.CreatedAt)
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
@@ -59,30 +73,40 @@ func (r *PostgresRepository) GetPost(ctx context.Context, id uuid.UUID) (*models
 	var post models.Post
 
 	row := r.db.QueryRowContext(ctx, sql, args...)
-	row.Scan(&post.Id,
-		&post.User_id,
+	err := row.Scan(&post.Id,
+		&post.UserId,
 		&post.Title,
 		&post.TextContent,
-		&post.ImageContent, &post.Created_at)
+		&post.ImagesContent,
+		&post.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("can`t scan properties from db : %v", err)
+	}
 
 	return &post, nil
 }
 
-func (r *PostgresRepository) GetPostsByUserId(ctx context.Context, user_id int) ([]*models.Post, error) {
+func (r *PostgresRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	posts := make([]*models.Post, 0)
+
+	offset := (page - 1) * size
 
 	query := builder.
 		Select("*").
 		From("posts").
-		Where(squirrel.Eq{"user_id": user_id})
+		Where(squirrel.Eq{"user_id": user_id}).
+		Limit(size).
+		Offset(offset)
 
-	sql, args, _ := query.ToSql()
-
-	posts := make([]*models.Post, 0)
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
+	}
 
 	rows, err := r.db.QueryContext(ctx, sql, args...)
 	if err != nil {
-		return posts, fmt.Errorf("error in quey for db: %v", err)
+		return posts, 0, fmt.Errorf("error in quey for db: %v", err)
 	}
 	defer rows.Close()
 
@@ -90,18 +114,34 @@ func (r *PostgresRepository) GetPostsByUserId(ctx context.Context, user_id int) 
 		var post models.Post
 
 		err := rows.Scan(&post.Id,
-			&post.User_id,
+			&post.UserId,
 			&post.Title,
 			&post.TextContent,
-			&post.ImageContent, &post.Created_at)
+			&post.ImagesContent, &post.CreatedAt)
 		if err != nil {
-			return posts, fmt.Errorf("error in parse post from db: %v", err)
+			return posts, 0, fmt.Errorf("error in parse post from db: %v", err)
 		}
 
 		posts = append(posts, &post)
 	}
 
-	return posts, nil
+	countQuery := builder.
+		Select("COUNT(*)").
+		From("posts")
+
+	countSql, countArgs, err := countQuery.ToSql()
+	if err != nil {
+		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
+	}
+
+	var totalCount uint
+
+	countRow := r.db.QueryRowContext(ctx, countSql, countArgs...)
+	if err := countRow.Scan(&totalCount); err != nil {
+		return nil, 0, fmt.Errorf("can`t scan properties from db : %v", err)
+	}
+
+	return posts, totalCount, nil
 }
 
 func (r *PostgresRepository) DeletePost(ctx context.Context, id uuid.UUID) error {
@@ -117,19 +157,18 @@ func (r *PostgresRepository) DeletePost(ctx context.Context, id uuid.UUID) error
 	}
 
 	rows, err := r.db.QueryContext(ctx, sql, args...)
-	defer rows.Close()
-
 	if err != nil {
 		return fmt.Errorf("error in execute sql-query : %v", err)
 	}
+	defer rows.Close()
 
 	return nil
 }
 
-func (r *PostgresRepository) UpdatePost(ctx context.Context, updateData repository.UpdatePostData) error {
+func (r *PostgresRepository) UpdatePost(ctx context.Context, updateData repository.UpdatePostData) (*models.Post, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	query := builder.Update("posts").Where("id = $", updateData.Id)
+	query := builder.Update("posts").Where("id = ?", updateData.Id)
 
 	for _, item := range updateData.UpdateData {
 		query = query.Set(item.Name, item.Value)
@@ -137,15 +176,24 @@ func (r *PostgresRepository) UpdatePost(ctx context.Context, updateData reposito
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("error in generate sql-query : %v", err)
+		return nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx, sql, args)
-	defer rows.Close()
-
+	_, err = r.db.ExecContext(ctx, sql, args...)
 	if err != nil {
-		return fmt.Errorf("error in execute sql-query : %v", err)
+		return nil, fmt.Errorf("error in execute sql-query : %v", err)
 	}
 
-	return nil
+	queryGetPost := builder.Select("*").From("posts").Where("id = ?", updateData.Id)
+	sqlGetPost, argsGetPost, _ := queryGetPost.ToSql()
+
+	row := r.db.QueryRowContext(ctx, sqlGetPost, argsGetPost...)
+
+	var post models.Post
+	err = row.Scan(&post.Id, &post.UserId, &post.Title, &post.TextContent, &post.ImagesContent, &post.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("error scanning updated post : %v", err)
+	}
+
+	return &post, nil
 }

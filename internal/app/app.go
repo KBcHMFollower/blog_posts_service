@@ -28,6 +28,11 @@ func New(
 		panic(err)
 	}
 
+	if err := rep.Migrate(cfg.Storage.MigrationPath); err != nil {
+		appLog.Error("db migrate error: ", err)
+		panic(err)
+	}
+
 	postService := postService.New(rep, log)
 
 	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService)

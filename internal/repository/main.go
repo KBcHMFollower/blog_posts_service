@@ -27,7 +27,7 @@ type CreatePostData struct {
 type PostRepository interface {
 	CreatePost(ctx context.Context, createData CreatePostData) (uuid.UUID, *models.Post, error)
 	GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	GetPostsByUserId(ctx context.Context, user_id int) ([]*models.Post, error)
+	GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error)
 	DeletePost(ctx context.Context, id uuid.UUID) error
-	UpdatePost(ctx context.Context, updateData UpdatePostData) error
+	UpdatePost(ctx context.Context, updateData UpdatePostData) (*models.Post, error)
 }

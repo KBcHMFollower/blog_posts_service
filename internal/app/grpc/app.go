@@ -41,6 +41,8 @@ func (g *GRPCApp) Run() error {
 		return fmt.Errorf("error in starting server: %v", err)
 	}
 
+	log.Info("server listen :", slog.String("addres", l.Addr().String()))
+
 	if err := g.GRPCServer.Serve(l); err != nil {
 		log.Error("server startup error ", err)
 		return fmt.Errorf("error in starting grpc server: %v", err)
