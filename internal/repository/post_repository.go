@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/KBcHMFollower/test_plate_blog_service/database"
 
-	"github.com/KBcHMFollower/test_plate_blog_service/internal/database"
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/domain/models"
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/lib/consts"
 	"github.com/Masterminds/squirrel"
@@ -156,7 +156,7 @@ func (r *PostRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID
 	return posts, totalCount, nil
 }
 
-func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) error {
+func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
@@ -165,16 +165,31 @@ func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) error {
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return fmt.Errorf("error in generate sql-query : %v", err)
+		return nil, fmt.Errorf("error in generate sql-query : %v", err)
+	}
+
+	getSql, getArgs, err := builder.Select("*").
+		From(consts.POSTS_TABLE).
+		Where(squirrel.Eq{consts.ID_FIELD: id}).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("error in generate sql-query : %v", err)
+	}
+
+	var post models.Post
+	getRow := r.db.QueryRowContext(ctx, getSql, getArgs...)
+	err = getRow.Scan(&post.Id, &post.UserId, &post.Title, &post.TextContent, &post.ImagesContent, &post.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, sql, args...)
 	if err != nil {
-		return fmt.Errorf("error in execute sql-query : %v", err)
+		return nil, fmt.Errorf("error in execute sql-query : %v", err)
 	}
 	defer rows.Close()
 
-	return nil
+	return &post, nil
 }
 
 func (r *PostRepository) UpdatePost(ctx context.Context, updateData UpdatePostData) (*models.Post, error) {

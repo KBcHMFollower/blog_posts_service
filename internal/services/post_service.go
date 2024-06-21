@@ -2,22 +2,25 @@ package postService
 
 import (
 	"context"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/rabbitmq"
 	"log/slog"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/internal/api/protos/gen"
+	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen"
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
 	"github.com/google/uuid"
 )
 
 type PostService struct {
+	rmqConn        *rabbitmq.Connection
 	postRepository repository.IPostRepository
 	log            *slog.Logger
 }
 
-func New(postRepository repository.IPostRepository, log *slog.Logger) *PostService {
+func New(postRepository repository.IPostRepository, log *slog.Logger, rmqConn *rabbitmq.Connection) *PostService {
 	return &PostService{
 		postRepository: postRepository,
 		log:            log,
+		rmqConn:        rmqConn,
 	}
 }
 
@@ -89,13 +92,15 @@ func (g *PostService) DeletePost(ctx context.Context, req *ssov1.DeletePostReque
 		return nil, err
 	}
 
-	err = g.postRepository.DeletePost(ctx, postUUID)
+	post, err := g.postRepository.DeletePost(ctx, postUUID)
 	if err != nil {
 		log.Error("can`t delete user from db :", err)
 		return &ssov1.DeletePostResponse{
 			IsDeleted: false,
 		}, err
 	}
+
+	err = rabbitmq.PublishDeletePostMessage(g.rmqConn, post.UserId.String())
 
 	return &ssov1.DeletePostResponse{
 		IsDeleted: true,

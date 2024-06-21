@@ -1,17 +1,19 @@
 package app
 
 import (
+	"github.com/KBcHMFollower/test_plate_blog_service/config"
+	database2 "github.com/KBcHMFollower/test_plate_blog_service/database"
+	"github.com/KBcHMFollower/test_plate_blog_service/internal/rabbitmq"
 	"log/slog"
 
 	grpcapp "github.com/KBcHMFollower/test_plate_blog_service/internal/app/grpc"
-	"github.com/KBcHMFollower/test_plate_blog_service/internal/config"
-	"github.com/KBcHMFollower/test_plate_blog_service/internal/database"
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
 	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services"
 )
 
 type App struct {
-	GRPCServer *grpcapp.GRPCApp
+	GRPCServer   *grpcapp.GRPCApp
+	RabbitMqConn *rabbitmq.Connection
 }
 
 func New(
@@ -23,7 +25,7 @@ func New(
 		slog.String("op", op),
 	)
 
-	dbDriver, db, err := database.New(cfg.Storage.ConnectionString)
+	dbDriver, db, err := database2.New(cfg.Storage.ConnectionString)
 	if err != nil {
 		appLog.Error("db connection error: ", err)
 		panic(err)
@@ -34,16 +36,36 @@ func New(
 		appLog.Error("TODO:", err)
 		panic(err)
 	}
-	if err := database.ForceMigrate(db, cfg.Storage.MigrationPath); err != nil {
+	if err := database2.ForceMigrate(db, cfg.Storage.MigrationPath); err != nil {
 		appLog.Error("db migrate error: ", err)
 		panic(err)
 	}
 
-	postService := postService.New(postRepository, log)
+	mcon, err := rabbitmq.New()
+	if err != nil {
+		appLog.Error("can`t open rabbitmq connection: ", err)
+		panic(err)
+	}
+	appLog.Info("RabbitMQ connection is opened")
+
+	err = rabbitmq.DeclareExchangeForPosts(mcon)
+	if err != nil {
+		return nil
+	}
+	appLog.Info("Post Exchange is declared")
+
+	err = rabbitmq.DeclareAndBindDeletePostQueue(mcon)
+	if err != nil {
+		return nil
+	}
+	appLog.Info("Post delete queue is created")
+
+	postService := postService.New(postRepository, log, mcon)
 
 	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService)
 
 	return &App{
-		GRPCServer: GRPCApp,
+		GRPCServer:   GRPCApp,
+		RabbitMqConn: mcon,
 	}
 }
