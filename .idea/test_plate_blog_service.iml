@@ -6,5 +6,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="golang-test-plate" />
+    <orderEntry type="module" module-name="test-plate-auth-service" />
   </component>
 </module>

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/../golang-test-plate/.idea/golang-test-plate.iml" filepath="$PROJECT_DIR$/../golang-test-plate/.idea/golang-test-plate.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../test-plate-auth-service/test-plate-auth-service/.idea/test-plate-auth-service.iml" filepath="$PROJECT_DIR$/../test-plate-auth-service/test-plate-auth-service/.idea/test-plate-auth-service.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/test_plate_blog_service.iml" filepath="$PROJECT_DIR$/.idea/test_plate_blog_service.iml" />
     </modules>
   </component>

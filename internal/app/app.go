@@ -3,7 +3,6 @@ package app
 import (
 	"github.com/KBcHMFollower/test_plate_blog_service/config"
 	database2 "github.com/KBcHMFollower/test_plate_blog_service/database"
-	"github.com/KBcHMFollower/test_plate_blog_service/internal/rabbitmq"
 	"log/slog"
 
 	grpcapp "github.com/KBcHMFollower/test_plate_blog_service/internal/app/grpc"
@@ -12,8 +11,7 @@ import (
 )
 
 type App struct {
-	GRPCServer   *grpcapp.GRPCApp
-	RabbitMqConn *rabbitmq.Connection
+	GRPCServer *grpcapp.GRPCApp
 }
 
 func New(
@@ -41,31 +39,11 @@ func New(
 		panic(err)
 	}
 
-	mcon, err := rabbitmq.New()
-	if err != nil {
-		appLog.Error("can`t open rabbitmq connection: ", err)
-		panic(err)
-	}
-	appLog.Info("RabbitMQ connection is opened")
-
-	err = rabbitmq.DeclareExchangeForPosts(mcon)
-	if err != nil {
-		return nil
-	}
-	appLog.Info("Post Exchange is declared")
-
-	err = rabbitmq.DeclareAndBindDeletePostQueue(mcon)
-	if err != nil {
-		return nil
-	}
-	appLog.Info("Post delete queue is created")
-
-	postService := postService.New(postRepository, log, mcon)
+	postService := postService.New(postRepository, log)
 
 	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService)
 
 	return &App{
-		GRPCServer:   GRPCApp,
-		RabbitMqConn: mcon,
+		GRPCServer: GRPCApp,
 	}
 }
