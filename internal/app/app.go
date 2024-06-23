@@ -1,14 +1,14 @@
 package app
 
 import (
-	"github.com/KBcHMFollower/test_plate_blog_service/config"
-	database2 "github.com/KBcHMFollower/test_plate_blog_service/database"
-	commentservice "github.com/KBcHMFollower/test_plate_blog_service/internal/services/comment_service"
-	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services/post_service"
+	"github.com/KBcHMFollower/blog_posts_service/config"
+	database2 "github.com/KBcHMFollower/blog_posts_service/database"
+	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services/comment_service"
+	postService "github.com/KBcHMFollower/blog_posts_service/internal/services/post_service"
 	"log/slog"
 
-	grpcapp "github.com/KBcHMFollower/test_plate_blog_service/internal/app/grpc"
-	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
+	grpcapp "github.com/KBcHMFollower/blog_posts_service/internal/app/grpc"
+	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
 )
 
 type App struct {

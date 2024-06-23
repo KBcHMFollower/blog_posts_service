@@ -1,7 +1,7 @@
 package models
 
 import (
-	commentsv1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen/comments"
+	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"

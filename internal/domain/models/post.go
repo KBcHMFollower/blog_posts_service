@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen/posts"
+	ssov1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"time"
 
 	"github.com/google/uuid"

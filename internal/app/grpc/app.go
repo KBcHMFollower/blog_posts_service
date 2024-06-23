@@ -2,12 +2,12 @@ package grpcapp
 
 import (
 	"fmt"
-	commentservice "github.com/KBcHMFollower/test_plate_blog_service/internal/services/comment_service"
-	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services/post_service"
+	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services/comment_service"
+	postService "github.com/KBcHMFollower/blog_posts_service/internal/services/post_service"
 	"log/slog"
 	"net"
 
-	grpcserver "github.com/KBcHMFollower/test_plate_blog_service/internal/grpc"
+	grpcserver "github.com/KBcHMFollower/blog_posts_service/internal/grpc"
 	"google.golang.org/grpc"
 )
 

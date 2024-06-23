@@ -2,9 +2,9 @@ package grpcserver
 
 import (
 	"context"
-	postService "github.com/KBcHMFollower/test_plate_blog_service/internal/services/post_service"
+	postService "github.com/KBcHMFollower/blog_posts_service/internal/services/post_service"
 
-	postsv1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen/posts"
+	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"google.golang.org/grpc"
 )
 
