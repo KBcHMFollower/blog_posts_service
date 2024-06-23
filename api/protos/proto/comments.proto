@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+
+package blog;
+
+option  go_package ="blog.comments;commentsv1";
+
+service CommentService{
+  rpc getPostComments(getPostCommentsRequest) returns (getPostCommentsResponse);
+  rpc getComment(getCommentRequest) returns (getCommentResponse);
+  rpc deleteComment(deleteCommentRequest) returns (deleteCommentResponse);
+  rpc updateComment(updateCommentRequest) returns (updateCommentResponse);
+  rpc createComment(createCommentRequest) returns (createCommentResponse);
+}
+
+message Comment {
+  string id = 1;
+  string post_id = 2;
+  string user_id = 3;
+  string content = 4;
+  int32 likes = 5;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message CommUpdateItem{
+  string name = 1;
+  string value = 2;
+}
+
+message getCommentRequest{
+  string id = 1;
+}
+
+message getCommentResponse{
+  Comment comments = 1;
+}
+
+message getPostCommentsRequest{
+  string post_id = 1;
+  int32 size = 2;
+  int32 page = 3;
+}
+message getPostCommentsResponse{
+  repeated Comment comments = 1;
+  int32 total_count = 2;
+}
+
+message deleteCommentRequest{
+  string id = 1;
+}
+
+message deleteCommentResponse{
+  bool is_deleted = 1;
+}
+
+message updateCommentRequest{
+  string id = 1;
+  repeated CommUpdateItem update_data = 2;
+}
+
+message updateCommentResponse{
+  string id = 1;
+  Comment comment = 2;
+}
+
+message createCommentRequest{
+  string user_id = 1;
+  string content = 2;
+  string post_id = 3;
+}
+
+message createCommentResponse{
+  string id = 1;
+  Comment comment = 2;
+}

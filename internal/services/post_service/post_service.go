@@ -1,27 +1,27 @@
-package postService
+package post_service
 
 import (
 	"context"
+	postsv1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen/posts"
 	"log/slog"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen"
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/repository"
 	"github.com/google/uuid"
 )
 
 type PostService struct {
-	postRepository repository.IPostRepository
+	postRepository repository.PostStore
 	log            *slog.Logger
 }
 
-func New(postRepository repository.IPostRepository, log *slog.Logger) *PostService {
+func New(postRepository repository.PostStore, log *slog.Logger) *PostService {
 	return &PostService{
 		postRepository: postRepository,
 		log:            log,
 	}
 }
 
-func (g *PostService) GetUserPosts(ctx context.Context, req *ssov1.GetUserPostsRequest) (*ssov1.GetUserPostsResponse, error) {
+func (g *PostService) GetUserPosts(ctx context.Context, req *postsv1.GetUserPostsRequest) (*postsv1.GetUserPostsResponse, error) {
 	op := "PostService.GetUserPosts"
 
 	log := g.log.With(
@@ -40,19 +40,19 @@ func (g *PostService) GetUserPosts(ctx context.Context, req *ssov1.GetUserPostsR
 		return nil, err
 	}
 
-	resPosts := make([]*ssov1.Post, 0)
+	resPosts := make([]*postsv1.Post, 0)
 
 	for _, item := range posts {
 		resPost := item.ConvertToProto()
 		resPosts = append(resPosts, resPost)
 	}
-	return &ssov1.GetUserPostsResponse{
+	return &postsv1.GetUserPostsResponse{
 		Posts:      resPosts,
 		TotalCount: int32(totalCount),
 	}, nil
 }
 
-func (g *PostService) GetPost(ctx context.Context, req *ssov1.GetPostRequest) (*ssov1.GetPostResponse, error) {
+func (g *PostService) GetPost(ctx context.Context, req *postsv1.GetPostRequest) (*postsv1.GetPostResponse, error) {
 	op := "PostService.GetPost"
 
 	log := g.log.With(
@@ -71,12 +71,12 @@ func (g *PostService) GetPost(ctx context.Context, req *ssov1.GetPostRequest) (*
 		return nil, err
 	}
 
-	return &ssov1.GetPostResponse{
+	return &postsv1.GetPostResponse{
 		Posts: post.ConvertToProto(),
 	}, nil
 }
 
-func (g *PostService) DeletePost(ctx context.Context, req *ssov1.DeletePostRequest) (*ssov1.DeletePostResponse, error) {
+func (g *PostService) DeletePost(ctx context.Context, req *postsv1.DeletePostRequest) (*postsv1.DeletePostResponse, error) {
 	op := "PostService.DeletePost"
 
 	log := g.log.With(
@@ -92,17 +92,17 @@ func (g *PostService) DeletePost(ctx context.Context, req *ssov1.DeletePostReque
 	_, err = g.postRepository.DeletePost(ctx, postUUID)
 	if err != nil {
 		log.Error("can`t delete user from db :", err)
-		return &ssov1.DeletePostResponse{
+		return &postsv1.DeletePostResponse{
 			IsDeleted: false,
 		}, err
 	}
 
-	return &ssov1.DeletePostResponse{
+	return &postsv1.DeletePostResponse{
 		IsDeleted: true,
 	}, nil
 }
 
-func (g *PostService) CreatePost(ctx context.Context, req *ssov1.CreatePostRequest) (*ssov1.CreatePostResponse, error) {
+func (g *PostService) CreatePost(ctx context.Context, req *postsv1.CreatePostRequest) (*postsv1.CreatePostResponse, error) {
 	op := "PostService.CreatePost"
 
 	log := g.log.With(
@@ -126,13 +126,13 @@ func (g *PostService) CreatePost(ctx context.Context, req *ssov1.CreatePostReque
 		return nil, err
 	}
 
-	return &ssov1.CreatePostResponse{
+	return &postsv1.CreatePostResponse{
 		Id:   postId.String(),
 		Post: post.ConvertToProto(),
 	}, nil
 }
 
-func (g *PostService) UpdatePost(ctx context.Context, req *ssov1.UpdatePostRequest) (*ssov1.UpdatePostResponse, error) {
+func (g *PostService) UpdatePost(ctx context.Context, req *postsv1.UpdatePostRequest) (*postsv1.UpdatePostResponse, error) {
 	op := "PostService.CreatePost"
 
 	log := g.log.With(
@@ -154,7 +154,7 @@ func (g *PostService) UpdatePost(ctx context.Context, req *ssov1.UpdatePostReque
 		})
 	}
 
-	post, err := g.postRepository.UpdatePost(ctx, repository.UpdatePostData{
+	post, err := g.postRepository.UpdatePost(ctx, repository.UpdateData{
 		Id:         postUUID,
 		UpdateData: updateItems,
 	})
@@ -163,7 +163,7 @@ func (g *PostService) UpdatePost(ctx context.Context, req *ssov1.UpdatePostReque
 		return nil, err
 	}
 
-	return &ssov1.UpdatePostResponse{
+	return &postsv1.UpdatePostResponse{
 		Id:   post.Id.String(),
 		Post: post.ConvertToProto(),
 	}, nil

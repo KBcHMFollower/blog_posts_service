@@ -2,9 +2,9 @@ package models
 
 import (
 	"fmt"
+	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen/posts"
 	"time"
 
-	ssov1 "github.com/KBcHMFollower/test_plate_blog_service/api/protos/gen"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -15,17 +15,17 @@ type Post struct {
 	Title         string
 	TextContent   string
 	ImagesContent string
+	Likes         int32
 	CreatedAt     time.Time
 }
 
-func CreatePost(user_id uuid.UUID, title string, textContent string, imageContent string) *Post {
+func CreatePost(userId uuid.UUID, title string, textContent string, imageContent string) *Post {
 	return &Post{
 		Id:            uuid.New(),
-		UserId:        user_id,
+		UserId:        userId,
 		Title:         title,
 		TextContent:   textContent,
 		ImagesContent: imageContent,
-		CreatedAt:     time.Now(),
 	}
 }
 
@@ -36,6 +36,7 @@ func (p *Post) ConvertToProto() *ssov1.Post {
 		Title:         p.Title,
 		TextContent:   p.TextContent,
 		ImagesContent: p.ImagesContent,
+		Likes:         p.Likes,
 		CreatedAt:     timestamppb.New(p.CreatedAt),
 	}
 }
@@ -58,6 +59,19 @@ func ConvertFromProto(protoPost *ssov1.Post) (*Post, error) {
 		Title:         protoPost.GetTitle(),
 		TextContent:   protoPost.GetTextContent(),
 		ImagesContent: protoPost.ImagesContent,
+		Likes:         protoPost.GetLikes(),
 		CreatedAt:     protoPost.GetCreatedAt().AsTime(),
 	}, nil
+}
+
+func (p *Post) GetPointersArray() []interface{} {
+	return []interface{}{
+		&p.Id,
+		&p.UserId,
+		&p.Title,
+		&p.TextContent,
+		&p.ImagesContent,
+		&p.Likes,
+		&p.CreatedAt,
+	}
 }

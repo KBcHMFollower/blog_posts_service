@@ -1,12 +1,14 @@
 syntax = "proto3";
 //protoc -I internal/api/protos/proto internal/api/protos/proto/posts.proto --go_out=./internal/api/protos/gen --go_opt=paths=source_relative --go-grpc_out=./internal/api/protos/gen/ --go-grpc_opt=paths=source_relative
+//protoc -I api/protos/proto api/protos/proto/posts.proto --go_out=./api/protos/gen --go_opt=paths=source_relative --go-grpc_out=./api/protos/gen/ --go-grpc_opt=paths=source_relative
+
 import "google/protobuf/timestamp.proto";
 
 package blog;
 
 option go_package = "posts.sso.v1;ssov1";
 
-service Blogs{
+service PostService{
 	rpc getUserPosts(getUserPostsRequest) returns (getUserPostsResponse);
 	rpc getPost(getPostRequest) returns (getPostResponse);
 	rpc deletePost(deletePostRequest) returns (deletePostResponse);
@@ -20,10 +22,11 @@ message Post {
 	string title = 3;
 	string textContent = 4;
 	string imagesContent = 5;
-	google.protobuf.Timestamp created_at = 6;
+	int32 likes = 6;
+	google.protobuf.Timestamp created_at = 7;
 }
 
-message UpdateItem{
+message PostUpdateItem{
 	string name = 1;
 	string value = 2;
 }
@@ -57,7 +60,7 @@ message deletePostResponse{
 
 message updatePostRequest{
 	string id = 1;
-	repeated UpdateItem update_data = 2;
+	repeated PostUpdateItem update_data = 2;
 }
 
 message updatePostResponse{

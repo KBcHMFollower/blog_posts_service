@@ -8,5 +8,12 @@
       <jdbc-url>jdbc:postgresql://localhost:5001/golang_auth</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="golang_posts@localhost" uuid="ce20aaa0-9eea-4efe-90d6-cb671a3e1af6">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5001/golang_posts</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>

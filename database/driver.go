@@ -18,8 +18,8 @@ type DBDriver struct {
 	*sql.DB
 }
 
-func New(connecionString string) (*DBDriver, *sql.DB, error) {
-	db, err := sql.Open("postgres", connecionString)
+func New(connectionString string) (*DBDriver, *sql.DB, error) {
+	db, err := sql.Open("postgres", connectionString)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error in process db connection : %v", err)
 	}

@@ -2,7 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../golang-test-plate" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../test-plate-auth-service/test-plate-auth-service" vcs="Git" />
   </component>
 </project>

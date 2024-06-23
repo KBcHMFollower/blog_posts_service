@@ -4,41 +4,36 @@ import (
 	"context"
 	"fmt"
 	"github.com/KBcHMFollower/test_plate_blog_service/database"
-
 	"github.com/KBcHMFollower/test_plate_blog_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 )
 
-type PostRepository struct {
+type CommentRepository struct {
 	db database.DBWrapper
 }
 
-func NewPostRepository(db database.DBWrapper) (*PostRepository, error) {
-	return &PostRepository{
+func NewCommentRepository(db database.DBWrapper) *CommentRepository {
+	return &CommentRepository{
 		db: db,
-	}, nil
+	}
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostData) (uuid.UUID, *models.Post, error) {
+func (r *CommentRepository) CreateComment(ctx context.Context, createData CreateCommentData) (uuid.UUID, *models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	post := models.CreatePost(
-		createData.User_id,
-		createData.Title,
-		createData.TextContent,
-		*createData.ImagesContent)
+	comment := models.CreateComment(createData.PostId, createData.UserId, createData.Content)
 
 	query := builder.
-		Insert(POSTS_TABLE).
-		Columns(ID_FIELD, USER_ID_FIELD, "title", "text_content", "images_content", "created_at").
-		Values(post.Id, post.UserId, post.Title, post.TextContent, post.ImagesContent, post.CreatedAt).
+		Insert(COMMENTS_TABLE).
+		Columns(ID_FIELD, USER_ID_FIELD, "post_id", "content").
+		Values(comment.Id, comment.UserId, comment.PostId, comment.Content).
 		Suffix("RETURNING \"id\"")
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
+
+		return uuid.Nil, nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
 	var insertId string
@@ -49,9 +44,8 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostDa
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
 
-	getSql, getArgs, err := builder.
-		Select("*").
-		From(POSTS_TABLE).
+	getSql, getArgs, err := builder.Select("*").
+		From(COMMENTS_TABLE).
 		Where(squirrel.Eq{ID_FIELD: insertId}).
 		ToSql()
 	if err != nil {
@@ -60,79 +54,79 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostDa
 
 	row := r.db.QueryRowContext(ctx, getSql, getArgs...)
 
-	var createdPost models.Post
-	err = row.Scan(createdPost.GetPointersArray()...)
+	var createdComment models.Comment
+	err = row.Scan(createdComment.GetPointerArray()...)
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
 
-	return createdPost.Id, &createdPost, nil
+	return createdComment.Id, &createdComment, nil
 }
 
-func (r *PostRepository) GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
+func (r *CommentRepository) GetComment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
 		Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id})
+		From(COMMENTS_TABLE).
+		Where(squirrel.Eq{ID_FIELD: commentId})
 
 	sql, args, _ := query.ToSql()
 
-	var post models.Post
+	var comment models.Comment
 
 	row := r.db.QueryRowContext(ctx, sql, args...)
-	err := row.Scan(post.GetPointersArray()...)
+	err := row.Scan(comment.GetPointerArray()...)
 	if err != nil {
 		return nil, fmt.Errorf("can`t scan properties from db : %v", err)
 	}
 
-	return &post, nil
+	return &comment, nil
 }
 
-func (r *PostRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error) {
+func (r *CommentRepository) GetPostComments(ctx context.Context, postId uuid.UUID, size uint64, page uint64) ([]*models.Comment, uint, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-	posts := make([]*models.Post, 0)
+	comments := make([]*models.Comment, 0)
 
 	offset := (page - 1) * size
 
 	query := builder.
 		Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: user_id}).
+		From(COMMENTS_TABLE).
+		Where(squirrel.Eq{"post_id": postId}).
 		Limit(size).
 		Offset(offset)
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
+		return comments, 0, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx, sql, args...)
 	if err != nil {
-		return posts, 0, fmt.Errorf("error in quey for db: %v", err)
+		return comments, 0, fmt.Errorf("error in quey for db: %v", err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var post models.Post
+		var comment models.Comment
 
-		err := rows.Scan(post.GetPointersArray()...)
+		err := rows.Scan(comment.GetPointerArray()...)
 		if err != nil {
-			return posts, 0, fmt.Errorf("error in parse post from db: %v", err)
+			return comments, 0, fmt.Errorf("error in parse post from db: %v", err)
 		}
 
-		posts = append(posts, &post)
+		comments = append(comments, &comment)
 	}
 
 	countQuery := builder.
 		Select("COUNT(*)").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: user_id})
+		From(COMMENTS_TABLE).
+		Where(squirrel.Eq{"post_id": postId})
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
-		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
+		return comments, 0, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
 	var totalCount uint
@@ -142,15 +136,15 @@ func (r *PostRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID
 		return nil, 0, fmt.Errorf("can`t scan properties from db : %v", err)
 	}
 
-	return posts, totalCount, nil
+	return comments, totalCount, nil
 }
 
-func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
+func (r *CommentRepository) DeleteComment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Delete(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id})
+		Delete(COMMENTS_TABLE).
+		Where(squirrel.Eq{ID_FIELD: commentId})
 
 	sql, args, err := query.ToSql()
 	if err != nil {
@@ -158,16 +152,16 @@ func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.
 	}
 
 	getSql, getArgs, err := builder.Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id}).
+		From(COMMENTS_TABLE).
+		Where(squirrel.Eq{ID_FIELD: commentId}).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	var post models.Post
+	var comment models.Comment
 	getRow := r.db.QueryRowContext(ctx, getSql, getArgs...)
-	err = getRow.Scan(post.GetPointersArray()...)
+	err = getRow.Scan(comment.GetPointerArray()...)
 	if err != nil {
 		return nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
@@ -178,18 +172,16 @@ func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.
 	}
 	defer rows.Close()
 
-	return &post, nil
+	return &comment, nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, updateData UpdateData) (*models.Post, error) {
+func (r *CommentRepository) UpdateComment(ctx context.Context, updateData UpdateData) (*models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	query := builder.
-		Update(POSTS_TABLE).
-		Where("id = ?", updateData.Id)
+	query := builder.Update(COMMENTS_TABLE).Where(squirrel.Eq{ID_FIELD: updateData.Id})
 
 	for _, item := range updateData.UpdateData {
-		if item.Name == ID_FIELD || item.Name == USER_ID_FIELD {
+		if item.Name == ID_FIELD || item.Name == USER_ID_FIELD || item.Name == "post_id" {
 			continue
 		}
 		query = query.Set(item.Name, item.Value)
@@ -205,19 +197,16 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData UpdateData) 
 		return nil, fmt.Errorf("error in execute sql-query : %v", err)
 	}
 
-	queryGetPost := builder.
-		Select("*").
-		From(POSTS_TABLE).
-		Where("id = ?", updateData.Id)
-	sqlGetPost, argsGetPost, _ := queryGetPost.ToSql()
+	queryGetComment := builder.Select("*").From(COMMENTS_TABLE).Where("id = ?", updateData.Id)
+	sqlGetComment, argsGetComment, _ := queryGetComment.ToSql()
 
-	row := r.db.QueryRowContext(ctx, sqlGetPost, argsGetPost...)
+	row := r.db.QueryRowContext(ctx, sqlGetComment, argsGetComment...)
 
-	var post models.Post
-	err = row.Scan(post.GetPointersArray()...)
+	var comment models.Comment
+	err = row.Scan(comment.GetPointerArray()...)
 	if err != nil {
 		return nil, fmt.Errorf("error scanning updated post : %v", err)
 	}
 
-	return &post, nil
+	return &comment, nil
 }
