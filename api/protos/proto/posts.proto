@@ -6,7 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 package blog;
 
-option go_package = "posts.sso.v1;ssov1";
+option go_package = "posts.sso.v1;postsv1";
 
 service PostService{
 	rpc getUserPosts(getUserPostsRequest) returns (getUserPostsResponse);

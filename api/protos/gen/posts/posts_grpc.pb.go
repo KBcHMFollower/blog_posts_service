@@ -4,7 +4,7 @@
 // - protoc             v5.27.1
 // source: posts.proto
 
-package ssov1
+package postsv1
 
 import (
 	context "context"
