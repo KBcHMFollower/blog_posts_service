@@ -6,4 +6,4 @@ COPY . .
 
 RUN go build -o posts cmd/blog/main.go
 
-CMD ["./posts --config=config/config.yaml"]
+CMD ["./posts", "--config=config/prod.yaml"]

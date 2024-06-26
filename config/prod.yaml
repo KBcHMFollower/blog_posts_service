@@ -1,0 +1,7 @@
+env: "prod"
+grpc:
+  port: 4041
+  timeout: 4s
+storage:
+  connection_string: "host=posts-db port=5432 user=postgres password=admin dbname=golang_posts sslmode=disable"
+  migration_path: "./migrations"
