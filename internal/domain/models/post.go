@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	ssov1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
+	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,12 +14,12 @@ type Post struct {
 	UserId        uuid.UUID
 	Title         string
 	TextContent   string
-	ImagesContent string
+	ImagesContent *string
 	Likes         int32
 	CreatedAt     time.Time
 }
 
-func CreatePost(userId uuid.UUID, title string, textContent string, imageContent string) *Post {
+func CreatePost(userId uuid.UUID, title string, textContent string, imageContent *string) *Post {
 	return &Post{
 		Id:            uuid.New(),
 		UserId:        userId,
@@ -29,8 +29,8 @@ func CreatePost(userId uuid.UUID, title string, textContent string, imageContent
 	}
 }
 
-func (p *Post) ConvertToProto() *ssov1.Post {
-	return &ssov1.Post{
+func (p *Post) ConvertToProto() *postsv1.Post {
+	return &postsv1.Post{
 		Id:            p.Id.String(),
 		UserId:        p.UserId.String(),
 		Title:         p.Title,
@@ -41,7 +41,7 @@ func (p *Post) ConvertToProto() *ssov1.Post {
 	}
 }
 
-func ConvertFromProto(protoPost *ssov1.Post) (*Post, error) {
+func ConvertFromProto(protoPost *postsv1.Post) (*Post, error) {
 
 	postUUID, err := uuid.Parse(protoPost.GetId())
 	if err != nil {

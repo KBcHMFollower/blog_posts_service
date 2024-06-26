@@ -24,11 +24,15 @@ func NewPostRepository(db database.DBWrapper) (*PostRepository, error) {
 func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostData) (uuid.UUID, *models.Post, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
+	fmt.Println(createData)
+
 	post := models.CreatePost(
 		createData.User_id,
 		createData.Title,
 		createData.TextContent,
-		*createData.ImagesContent)
+		createData.ImagesContent)
+
+	fmt.Println(post)
 
 	query := builder.
 		Insert(POSTS_TABLE).
@@ -60,8 +64,12 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostDa
 
 	row := r.db.QueryRowContext(ctx, getSql, getArgs...)
 
+	fmt.Println("1")
+
 	var createdPost models.Post
 	err = row.Scan(createdPost.GetPointersArray()...)
+
+	fmt.Println(createdPost)
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
 	}

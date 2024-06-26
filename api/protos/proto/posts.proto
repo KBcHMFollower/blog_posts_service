@@ -21,7 +21,7 @@ message Post {
 	string user_id = 2;
 	string title = 3;
 	string textContent = 4;
-	string imagesContent = 5;
+	optional string imagesContent = 5;
 	int32 likes = 6;
 	google.protobuf.Timestamp created_at = 7;
 }

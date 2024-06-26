@@ -2,6 +2,7 @@ package post_service
 
 import (
 	"context"
+	"fmt"
 	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"log/slog"
 
@@ -125,6 +126,8 @@ func (g *PostService) CreatePost(ctx context.Context, req *postsv1.CreatePostReq
 		log.Error("can`t create user from db :", err)
 		return nil, err
 	}
+
+	fmt.Println(postId, post)
 
 	return &postsv1.CreatePostResponse{
 		Id:   postId.String(),
