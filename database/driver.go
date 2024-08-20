@@ -12,6 +12,7 @@ type DBWrapper interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
 
 type DBDriver struct {

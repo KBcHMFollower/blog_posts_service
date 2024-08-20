@@ -37,7 +37,8 @@ type CreateCommentData struct {
 	Content string
 }
 
-type PostStore interface {
+type PostsStore interface {
+	DeleteUserPosts(ctx context.Context, userId uuid.UUID) error
 	CreatePost(ctx context.Context, createData CreatePostData) (uuid.UUID, *models.Post, error)
 	GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error)
 	GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error)
@@ -45,7 +46,7 @@ type PostStore interface {
 	UpdatePost(ctx context.Context, updateData UpdateData) (*models.Post, error)
 }
 
-type CommentStore interface {
+type CommentsStore interface {
 	CreateComment(ctx context.Context, createData CreateCommentData) (uuid.UUID, *models.Comment, error)
 	GetComment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error)
 	GetPostComments(ctx context.Context, postId uuid.UUID, size uint64, page uint64) ([]*models.Comment, uint, error)

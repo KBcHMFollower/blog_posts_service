@@ -11,11 +11,11 @@ import (
 )
 
 type PostService struct {
-	postRepository repository.PostStore
+	postRepository repository.PostsStore
 	log            *slog.Logger
 }
 
-func New(postRepository repository.PostStore, log *slog.Logger) *PostService {
+func New(postRepository repository.PostsStore, log *slog.Logger) *PostService {
 	return &PostService{
 		postRepository: postRepository,
 		log:            log,
@@ -170,4 +170,9 @@ func (g *PostService) UpdatePost(ctx context.Context, req *postsv1.UpdatePostReq
 		Id:   post.Id.String(),
 		Post: post.ConvertToProto(),
 	}, nil
+}
+
+func (g *PostService) DeleteUserPosts(ctx context.Context, userId uuid.UUID) error {
+	err := g.postRepository.DeleteUserPosts(ctx, userId)
+	return err
 }

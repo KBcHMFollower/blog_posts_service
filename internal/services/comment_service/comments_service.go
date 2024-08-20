@@ -9,11 +9,11 @@ import (
 )
 
 type CommentsService struct {
-	commRep repository.CommentStore
+	commRep repository.CommentsStore
 	log     *slog.Logger
 }
 
-func New(commReP repository.CommentStore, log *slog.Logger) *CommentsService {
+func New(commReP repository.CommentsStore, log *slog.Logger) *CommentsService {
 	return &CommentsService{
 		commRep: commReP,
 		log:     log,

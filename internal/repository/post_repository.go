@@ -229,3 +229,50 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData UpdateData) 
 
 	return &post, nil
 }
+
+func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID) error { //TODO
+	op := "PostRepository.DeleteUserPosts"
+	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("%s : %w", op, err)
+	}
+
+	query := builder.
+		Delete(POSTS_TABLE).
+		Where(squirrel.Eq{USER_ID_FIELD: userId})
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("error in generate sql-query : %v", err)
+	}
+
+	_, err = tx.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf("error in execute sql-query : %v", err)
+	}
+
+	insertBuilder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	insertQuery := insertBuilder.Insert("transaction_events").
+		SetMap(map[string]interface{}{
+			"event_id":   uuid.New(),
+			"event_type": "postsDeleted",
+			"payload":    "",
+		})
+
+	sql, args, err = insertQuery.ToSql()
+	if err != nil {
+		return fmt.Errorf("%s : %w", op, err)
+	}
+
+	_, err = tx.ExecContext(ctx, sql, args...)
+	if err != nil {
+		return fmt.Errorf("%s : %w", op, err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("%s : %w", op, err)
+	}
+	return nil
+}
