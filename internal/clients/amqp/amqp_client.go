@@ -1,18 +1,16 @@
-package amqp_client
+package amqpclient
 
 type AmqpSender interface {
 	Send(message []byte) error
-}
-
-type AmqpConsumer interface {
-	StartConsume() error
 }
 
 type AmqpSenderFactory interface {
 	GetSender(eventType string) (AmqpSender, error)
 }
 
+type AmqpHandlerFunc = func(message []byte) error
+
 type AmqpClient interface {
-	GetSendersProvider() AmqpSenderFactory
-	GetConsumer() AmqpConsumer
+	Publish(eventType string, body []byte) error
+	Consume(target string, handler AmqpHandlerFunc) error
 }

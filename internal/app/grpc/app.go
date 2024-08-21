@@ -2,12 +2,11 @@ package grpcapp
 
 import (
 	"fmt"
-	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services/comment_service"
-	postService "github.com/KBcHMFollower/blog_posts_service/internal/services/post_service"
+	grpcserver2 "github.com/KBcHMFollower/blog_posts_service/internal/handlers/grpc"
+	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"log/slog"
 	"net"
 
-	grpcserver "github.com/KBcHMFollower/blog_posts_service/internal/grpc"
 	"google.golang.org/grpc"
 )
 
@@ -17,10 +16,10 @@ type GRPCApp struct {
 	GRPCServer *grpc.Server
 }
 
-func New(port int, log *slog.Logger, postService *postService.PostService, commService *commentservice.CommentsService) *GRPCApp {
+func New(port int, log *slog.Logger, postService *commentservice.PostService, commService *commentservice.CommentsService) *GRPCApp {
 	cleanGrpcServer := grpc.NewServer()
-	grpcserver.RegisterPostServer(cleanGrpcServer, postService)
-	grpcserver.RegisterCommentsServer(cleanGrpcServer, commService)
+	grpcserver2.RegisterPostServer(cleanGrpcServer, postService)
+	grpcserver2.RegisterCommentsServer(cleanGrpcServer, commService)
 
 	return &GRPCApp{
 		log:        log,

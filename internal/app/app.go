@@ -3,8 +3,7 @@ package app
 import (
 	"github.com/KBcHMFollower/blog_posts_service/config"
 	database2 "github.com/KBcHMFollower/blog_posts_service/database"
-	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services/comment_service"
-	postService "github.com/KBcHMFollower/blog_posts_service/internal/services/post_service"
+	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"log/slog"
 
 	grpcapp "github.com/KBcHMFollower/blog_posts_service/internal/app/grpc"
@@ -19,7 +18,7 @@ func New(
 	log *slog.Logger,
 	cfg *config.Config,
 ) *App {
-	op := "App.New"
+	op := "App.NewCommentService"
 	appLog := log.With(
 		slog.String("op", op),
 	)
@@ -43,8 +42,8 @@ func New(
 		panic(err)
 	}
 
-	postService := postService.New(postRepository, log)
-	commService := commentservice.New(commRepository, log)
+	postService := commentservice.NewPostsService(postRepository, log)
+	commService := commentservice.NewCommentService(commRepository, log)
 
 	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService, commService)
 

@@ -1,21 +1,29 @@
-package post_service
+package services
 
 import (
 	"context"
 	"fmt"
 	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
+	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
 	"log/slog"
 
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
 	"github.com/google/uuid"
 )
 
+type PostsStore interface {
+	services_dep.PostCreator
+	services_dep.PostDeleter
+	services_dep.PostGetter
+	services_dep.PostUpdater
+}
+
 type PostService struct {
-	postRepository repository.PostsStore
+	postRepository PostsStore
 	log            *slog.Logger
 }
 
-func New(postRepository repository.PostsStore, log *slog.Logger) *PostService {
+func NewPostsService(postRepository PostsStore, log *slog.Logger) *PostService {
 	return &PostService{
 		postRepository: postRepository,
 		log:            log,
@@ -77,7 +85,7 @@ func (g *PostService) GetPost(ctx context.Context, req *postsv1.GetPostRequest) 
 	}, nil
 }
 
-func (g *PostService) DeletePost(ctx context.Context, req *postsv1.DeletePostRequest) (*postsv1.DeletePostResponse, error) {
+func (g *PostService) DeletePost(ctx context.Context, req *postsv1.DeletePostRequest) error {
 	op := "PostService.DeletePost"
 
 	log := g.log.With(

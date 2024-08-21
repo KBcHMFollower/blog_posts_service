@@ -1,19 +1,25 @@
-package requests_service
+package services
 
 import (
 	"context"
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
+	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
 	"github.com/google/uuid"
 	"log/slog"
 )
+
+type RequestsStore interface {
+	services_dep.RequestsCreator
+	services_dep.RequestsGetter
+}
 
 type RequestsService struct {
 	reqRepository repository.RequestsStore
 	log           *slog.Logger
 }
 
-func New(reqRepository repository.RequestsStore, log *slog.Logger) *RequestsService {
+func NewRequestsService(reqRepository repository.RequestsStore, log *slog.Logger) *RequestsService {
 	return &RequestsService{
 		reqRepository: reqRepository,
 		log:           log,

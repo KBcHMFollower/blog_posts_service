@@ -3,7 +3,7 @@ package grpcserver
 import (
 	"context"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
-	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services/comment_service"
+	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"google.golang.org/grpc"
 )
 

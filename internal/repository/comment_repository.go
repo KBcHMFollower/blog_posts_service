@@ -9,6 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	POSTS_TABLE    = "posts"
+	COMMENTS_TABLE = "comments"
+	ID_FIELD       = "id"
+	USER_ID_FIELD  = "user_id"
+)
+
 type CommentRepository struct {
 	db database.DBWrapper
 }

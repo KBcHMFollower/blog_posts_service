@@ -1,19 +1,27 @@
-package commentservice
+package services
 
 import (
 	"context"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
+	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
 	"github.com/google/uuid"
 	"log/slog"
 )
 
+type CommentsStore interface {
+	services_dep.CommentsCreator
+	services_dep.CommentsGetter
+	services_dep.CommentsDeleter
+	services_dep.CommentsUpdater
+}
+
 type CommentsService struct {
-	commRep repository.CommentsStore
+	commRep CommentsStore
 	log     *slog.Logger
 }
 
-func New(commReP repository.CommentsStore, log *slog.Logger) *CommentsService {
+func NewCommentService(commReP CommentsStore, log *slog.Logger) *CommentsService {
 	return &CommentsService{
 		commRep: commReP,
 		log:     log,
@@ -75,7 +83,7 @@ func (s *CommentsService) GetComment(ctx context.Context, req *commentsv1.GetCom
 	}, nil
 }
 
-func (s *CommentsService) DeleteComment(ctx context.Context, req *commentsv1.DeleteCommentRequest) (*commentsv1.DeleteCommentResponse, error) {
+func (s *CommentsService) DeleteComment(ctx context.Context, req *commentsv1.DeleteCommentRequest) error {
 	op := "PostService.DeletePost"
 
 	log := s.log.With(
