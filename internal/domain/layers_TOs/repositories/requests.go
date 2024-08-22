@@ -1,8 +1,8 @@
-package services_transfer
+package repositories_transfer
 
 import "github.com/google/uuid"
 
-type RequestsCheckExistsInfo struct {
+type CreateRequestInfo struct {
 	Key     uuid.UUID
 	Payload string
 }

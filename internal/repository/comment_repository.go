@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/database"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -26,7 +27,7 @@ func NewCommentRepository(db database.DBWrapper) *CommentRepository {
 	}
 }
 
-func (r *CommentRepository) CreateComment(ctx context.Context, createData CreateCommentData) (uuid.UUID, *models.Comment, error) {
+func (r *CommentRepository) CreateComment(ctx context.Context, createData repositories_transfer.CreateCommentInfo) (uuid.UUID, *models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	comment := models.CreateComment(createData.PostId, createData.UserId, createData.Content)
@@ -182,7 +183,7 @@ func (r *CommentRepository) DeleteComment(ctx context.Context, commentId uuid.UU
 	return &comment, nil
 }
 
-func (r *CommentRepository) UpdateComment(ctx context.Context, updateData UpdateData) (*models.Comment, error) {
+func (r *CommentRepository) UpdateComment(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) (*models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.Update(COMMENTS_TABLE).Where(squirrel.Eq{ID_FIELD: updateData.Id})

@@ -1,6 +1,9 @@
 package services_transfer
 
-import "github.com/google/uuid"
+import (
+	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
+	"github.com/google/uuid"
+)
 
 type CommUpdateFieldInfo struct {
 	Name  string
@@ -57,4 +60,24 @@ type UpdateCommentResult struct {
 type CreateCommentResult struct {
 	CommId  uuid.UUID
 	Comment CommentResult
+}
+
+func ConvertCommentFromModel(model *models.Comment) CommentResult {
+	return CommentResult{
+		CommId:  model.Id,
+		PostId:  model.PostId,
+		UserId:  model.UserId,
+		Content: model.Content,
+		Likes:   int32(model.Likes),
+	}
+}
+
+func ConvertCommentsArrayFromModels(models []*models.Comment) []CommentResult {
+	var results []CommentResult = make([]CommentResult, 0, len(models))
+
+	for _, model := range models {
+		results = append(results, ConvertCommentFromModel(model))
+	}
+
+	return results
 }

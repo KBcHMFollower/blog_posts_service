@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
-	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
+	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
-	"github.com/google/uuid"
 	"log/slog"
 )
 
@@ -28,20 +28,14 @@ func NewCommentService(commReP CommentsStore, log *slog.Logger) *CommentsService
 	}
 }
 
-func (s *CommentsService) GetPostComments(ctx context.Context, req *commentsv1.GetPostCommentsRequest) (*commentsv1.GetPostCommentsResponse, error) {
+func (s *CommentsService) GetPostComments(ctx context.Context, getInfo *services_transfer.GetPostCommentsInfo) (*services_transfer.GetPostCommentsResult, error) {
 	op := "CommentsService.GetPostComments"
 
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	postUUID, err := uuid.Parse(req.GetPostId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid", err)
-		return nil, err
-	}
-
-	comments, totalCount, err := s.commRep.GetPostComments(ctx, postUUID, uint64(req.GetSize()), uint64(req.GetPage()))
+	comments, totalCount, err := s.commRep.GetPostComments(ctx, getInfo.PostId, uint64(getInfo.Size), uint64(getInfo.Page))
 	if err != nil {
 		log.Error("repository error", err)
 		return nil, err
@@ -53,86 +47,63 @@ func (s *CommentsService) GetPostComments(ctx context.Context, req *commentsv1.G
 		resPost := item.ConvertToProto()
 		resComms = append(resComms, resPost)
 	}
-	return &commentsv1.GetPostCommentsResponse{
-		Comments:   resComms,
+	return &services_transfer.GetPostCommentsResult{
 		TotalCount: int32(totalCount),
+		Comments:   services_transfer.ConvertCommentsArrayFromModels(comments),
 	}, nil
 }
 
-func (s *CommentsService) GetComment(ctx context.Context, req *commentsv1.GetCommentRequest) (*commentsv1.GetCommentResponse, error) {
+func (s *CommentsService) GetComment(ctx context.Context, getInfo *services_transfer.GetCommentInfo) (*services_transfer.GetCommentResult, error) {
 	op := "CommentsService.GetComment"
 
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	commentUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
-
-	comment, err := s.commRep.GetComment(ctx, commentUUID)
+	comment, err := s.commRep.GetComment(ctx, getInfo.CommId)
 	if err != nil {
 		log.Error("can`t get user from db :", err)
 		return nil, err
 	}
 
-	return &commentsv1.GetCommentResponse{
-		Comments: comment.ConvertToProto(),
+	return &services_transfer.GetCommentResult{
+		Comment: services_transfer.ConvertCommentFromModel(comment),
 	}, nil
 }
 
-func (s *CommentsService) DeleteComment(ctx context.Context, req *commentsv1.DeleteCommentRequest) error {
+func (s *CommentsService) DeleteComment(ctx context.Context, deleteInfo *services_transfer.DeleteCommentInfo) error {
 	op := "PostService.DeletePost"
 
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	commentUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
-
-	_, err = s.commRep.DeleteComment(ctx, commentUUID)
-	if err != nil {
+	if _, err := s.commRep.DeleteComment(ctx, deleteInfo.CommId); err != nil {
 		log.Error("can`t delete user from db :", err)
-		return &commentsv1.DeleteCommentResponse{
-			IsDeleted: false,
-		}, err
+		return err
 	}
 
-	return &commentsv1.DeleteCommentResponse{
-		IsDeleted: true,
-	}, nil
+	return nil
 }
 
-func (s *CommentsService) UpdateComment(ctx context.Context, req *commentsv1.UpdateCommentRequest) (*commentsv1.UpdateCommentResponse, error) {
+func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *services_transfer.UpdateCommentInfo) (*services_transfer.UpdateCommentResult, error) {
 	op := "CommentsService.UpdateComment"
 
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	commUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
+	updateItems := make([]*repositories_transfer.CommentUpdateFieldInfo, 0)
 
-	updateItems := make([]*repository.UpdateItem, 0)
-
-	for _, item := range req.UpdateData {
-		updateItems = append(updateItems, &repository.UpdateItem{
+	for _, item := range updateInfo.UpdateFields {
+		updateItems = append(updateItems, &repositories_transfer.CommentUpdateFieldInfo{
 			Name:  item.Name,
 			Value: item.Value,
 		})
 	}
 
-	comm, err := s.commRep.UpdateComment(ctx, repository.UpdateData{
-		Id:         commUUID,
+	comm, err := s.commRep.UpdateComment(ctx, repositories_transfer.UpdateCommentInfo{
+		Id:         updateInfo.CommId,
 		UpdateData: updateItems,
 	})
 	if err != nil {
@@ -140,43 +111,31 @@ func (s *CommentsService) UpdateComment(ctx context.Context, req *commentsv1.Upd
 		return nil, err
 	}
 
-	return &commentsv1.UpdateCommentResponse{
-		Id:      comm.Id.String(),
-		Comment: comm.ConvertToProto(),
+	return &services_transfer.UpdateCommentResult{
+		CommId:  comm.Id,
+		Comment: services_transfer.ConvertCommentFromModel(comm),
 	}, nil
 }
 
-func (s *CommentsService) CreateComment(ctx context.Context, req *commentsv1.CreateCommentRequest) (*commentsv1.CreateCommentResponse, error) {
+func (s *CommentsService) CreateComment(ctx context.Context, createInfo *services_transfer.CreateCommentInfo) (*services_transfer.CreateCommentResult, error) {
 	op := "CommentsService.CreateComment"
 
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	userUUID, err := uuid.Parse(req.GetUserId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
-
-	postUUID, err := uuid.Parse(req.GetPostId())
-	if err != nil {
-		log.Error("can`t parse post_id from uuid :", err)
-		return nil, err
-	}
-
-	commId, comm, err := s.commRep.CreateComment(ctx, repository.CreateCommentData{
-		PostId:  postUUID,
-		UserId:  userUUID,
-		Content: req.GetContent(),
+	commId, comm, err := s.commRep.CreateComment(ctx, repositories_transfer.CreateCommentInfo{
+		PostId:  createInfo.PostId,
+		UserId:  createInfo.UserId,
+		Content: createInfo.Content, //TODO: ВРОДЕ ЕЩЕ КАРТИНКИ МОЖНО
 	})
 	if err != nil {
 		log.Error("can`t create user from db :", err)
 		return nil, err
 	}
 
-	return &commentsv1.CreateCommentResponse{
-		Id:      commId.String(),
-		Comment: comm.ConvertToProto(),
+	return &services_transfer.CreateCommentResult{
+		CommId:  commId,
+		Comment: services_transfer.ConvertCommentFromModel(comm),
 	}, nil
 }

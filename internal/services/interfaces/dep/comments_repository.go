@@ -13,11 +13,11 @@ type CommentsGetter interface {
 }
 
 type CommentsCreator interface {
-	CreateComment(ctx context.Context, createData repositories_transfer.CreateCommentData) (uuid.UUID, *models.Comment, error)
+	CreateComment(ctx context.Context, createData repositories_transfer.CreateCommentInfo) (uuid.UUID, *models.Comment, error)
 }
 
 type CommentsUpdater interface {
-	UpdateComment(ctx context.Context, updateData repositories_transfer.UpdateData) (*models.Comment, error)
+	UpdateComment(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) (*models.Comment, error)
 }
 
 type CommentsDeleter interface {

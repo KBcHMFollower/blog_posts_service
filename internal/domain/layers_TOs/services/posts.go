@@ -1,6 +1,9 @@
 package services_transfer
 
-import "github.com/google/uuid"
+import (
+	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
+	"github.com/google/uuid"
+)
 
 type UpdateUserFieldInfo struct {
 	Name  string
@@ -63,4 +66,25 @@ type CreatePostResult struct {
 type UpdatePostResult struct {
 	PostId uuid.UUID
 	Post   PostResult
+}
+
+func ConvertPostFromModel(model *models.Post) PostResult {
+	return PostResult{
+		PostId:        model.Id,
+		UserId:        model.UserId,
+		Title:         model.Title,
+		TextContent:   model.TextContent,
+		ImagesContent: model.ImagesContent,
+		Likes:         model.Likes,
+	}
+}
+
+func ConvertPostsArrayFromModel(posts []*models.Post) []PostResult {
+	results := make([]PostResult, 0, len(posts))
+
+	for _, post := range posts {
+		results = append(results, ConvertPostFromModel(post))
+	}
+
+	return results
 }

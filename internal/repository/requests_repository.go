@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/database"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
@@ -24,13 +25,13 @@ func NewRequestsRepository(db database.DBWrapper) (*RequestsRepository, error) {
 	}, nil
 }
 
-func (r *RequestsRepository) Create(ctx context.Context, key uuid.UUID, payload string) (uuid.UUID, *models.Request, error) {
+func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo) (uuid.UUID, *models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	request := models.Request{
 		Id:             uuid.New(),
-		IdempotencyKey: key,
-		Payload:        payload,
+		IdempotencyKey: info.Key,
+		Payload:        info.Payload,
 	}
 
 	query := builder.

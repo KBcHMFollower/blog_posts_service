@@ -2,24 +2,17 @@ package repositories_transfer
 
 import "github.com/google/uuid"
 
-type UpdateItem struct {
+type CommentUpdateFieldInfo struct {
 	Name  string
 	Value string
 }
 
-type UpdateData struct {
+type UpdateCommentInfo struct {
 	Id         uuid.UUID
-	UpdateData []*UpdateItem
+	UpdateData []*CommentUpdateFieldInfo
 }
 
-type CreatePostData struct {
-	User_id       uuid.UUID
-	Title         string
-	TextContent   string
-	ImagesContent *string
-}
-
-type CreateCommentData struct {
+type CreateCommentInfo struct {
 	PostId  uuid.UUID
 	UserId  uuid.UUID
 	Content string

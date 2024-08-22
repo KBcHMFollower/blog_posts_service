@@ -3,9 +3,9 @@ package services
 import (
 	"context"
 	"fmt"
+	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
-	"github.com/google/uuid"
 	"log/slog"
 )
 
@@ -26,14 +26,14 @@ func NewRequestsService(reqRepository repository.RequestsStore, log *slog.Logger
 	}
 }
 
-func (rs *RequestsService) CheckExists(ctx context.Context, key uuid.UUID, payload string) (bool, error) {
+func (rs *RequestsService) CheckExists(ctx context.Context, checkInfo services_transfer.RequestsCheckExistsInfo) (bool, error) {
 	op := "PostService.GetUserPosts"
 
 	log := rs.log.With(
 		slog.String("op", op),
 	)
 
-	res, err := rs.reqRepository.Get(ctx, key)
+	res, err := rs.reqRepository.Get(ctx, checkInfo.Key)
 	if err != nil {
 		log.Error(err.Error())
 		return true, fmt.Errorf("%s: %w", op, err)
@@ -43,7 +43,7 @@ func (rs *RequestsService) CheckExists(ctx context.Context, key uuid.UUID, paylo
 		return true, nil
 	}
 
-	_, _, err = rs.reqRepository.Create(ctx, key, payload)
+	_, _, err = rs.reqRepository.Create(ctx, checkInfo.Key, checkInfo.Payload)
 	if err != nil {
 		log.Error(err.Error())
 		return true, fmt.Errorf("%s: %w", op, err)

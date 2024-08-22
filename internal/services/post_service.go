@@ -3,12 +3,10 @@ package services
 import (
 	"context"
 	"fmt"
-	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
+	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
 	"log/slog"
-
-	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
-	"github.com/google/uuid"
 )
 
 type PostsStore interface {
@@ -30,105 +28,70 @@ func NewPostsService(postRepository PostsStore, log *slog.Logger) *PostService {
 	}
 }
 
-func (g *PostService) GetUserPosts(ctx context.Context, req *postsv1.GetUserPostsRequest) (*postsv1.GetUserPostsResponse, error) {
+func (g *PostService) GetUserPosts(ctx context.Context, getInfo *services_transfer.GetUserPostsInfo) (*services_transfer.GetUserPostsResult, error) {
 	op := "PostService.GetUserPosts"
 
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	userUUID, err := uuid.Parse(req.GetUserId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid", err)
-		return nil, err
-	}
-
-	posts, totalCount, err := g.postRepository.GetPostsByUserId(ctx, userUUID, uint64(req.GetSize()), uint64(req.GetPage()))
+	posts, totalCount, err := g.postRepository.GetPostsByUserId(ctx, getInfo.UserId, uint64(getInfo.Size), uint64(getInfo.Page))
 	if err != nil {
 		log.Error("repository error", err)
 		return nil, err
 	}
 
-	resPosts := make([]*postsv1.Post, 0)
-
-	for _, item := range posts {
-		resPost := item.ConvertToProto()
-		resPosts = append(resPosts, resPost)
-	}
-	return &postsv1.GetUserPostsResponse{
-		Posts:      resPosts,
+	return &services_transfer.GetUserPostsResult{
+		Posts:      services_transfer.ConvertPostsArrayFromModel(posts),
 		TotalCount: int32(totalCount),
 	}, nil
 }
 
-func (g *PostService) GetPost(ctx context.Context, req *postsv1.GetPostRequest) (*postsv1.GetPostResponse, error) {
+func (g *PostService) GetPost(ctx context.Context, getInfo *services_transfer.GetPostInfo) (*services_transfer.GetPostResult, error) {
 	op := "PostService.GetPost"
 
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	postUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
-
-	post, err := g.postRepository.GetPost(ctx, postUUID)
+	post, err := g.postRepository.GetPost(ctx, getInfo.PostId)
 	if err != nil {
 		log.Error("can`t get user from db :", err)
 		return nil, err
 	}
 
-	return &postsv1.GetPostResponse{
-		Posts: post.ConvertToProto(),
+	return &services_transfer.GetPostResult{
+		Post: services_transfer.ConvertPostFromModel(post),
 	}, nil
 }
 
-func (g *PostService) DeletePost(ctx context.Context, req *postsv1.DeletePostRequest) error {
+func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_transfer.DeletePostInfo) error {
 	op := "PostService.DeletePost"
 
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	postUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
+	if _, err := g.postRepository.DeletePost(ctx, deleteInfo.PostId); err != nil {
+		log.Error("repository error", err)
+		return err
 	}
 
-	_, err = g.postRepository.DeletePost(ctx, postUUID)
-	if err != nil {
-		log.Error("can`t delete user from db :", err)
-		return &postsv1.DeletePostResponse{
-			IsDeleted: false,
-		}, err
-	}
-
-	return &postsv1.DeletePostResponse{
-		IsDeleted: true,
-	}, nil
+	return nil
 }
 
-func (g *PostService) CreatePost(ctx context.Context, req *postsv1.CreatePostRequest) (*postsv1.CreatePostResponse, error) {
+func (g *PostService) CreatePost(ctx context.Context, createInfo *services_transfer.CreatePostInfo) (*services_transfer.CreatePostResult, error) {
 	op := "PostService.CreatePost"
 
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	userUUID, err := uuid.Parse(req.GetUserId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
-
-	postId, post, err := g.postRepository.CreatePost(ctx, repository.CreatePostData{
-		User_id:       userUUID,
-		Title:         req.GetTitle(),
-		TextContent:   req.GetTextContent(),
-		ImagesContent: req.ImagesContent,
+	postId, post, err := g.postRepository.CreatePost(ctx, repositories_transfer.CreatePostInfo{
+		User_id:       createInfo.UserId,
+		Title:         createInfo.Title,
+		TextContent:   createInfo.TextContent,
+		ImagesContent: createInfo.ImagesContent,
 	})
 	if err != nil {
 		log.Error("can`t create user from db :", err)
@@ -137,36 +100,30 @@ func (g *PostService) CreatePost(ctx context.Context, req *postsv1.CreatePostReq
 
 	fmt.Println(postId, post)
 
-	return &postsv1.CreatePostResponse{
-		Id:   postId.String(),
-		Post: post.ConvertToProto(),
+	return &services_transfer.CreatePostResult{
+		PostId: postId,
+		Post:   services_transfer.ConvertPostFromModel(post),
 	}, nil
 }
 
-func (g *PostService) UpdatePost(ctx context.Context, req *postsv1.UpdatePostRequest) (*postsv1.UpdatePostResponse, error) {
+func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_transfer.UpdatePostInfo) (*services_transfer.UpdatePostResult, error) {
 	op := "PostService.CreatePost"
 
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	postUUID, err := uuid.Parse(req.GetId())
-	if err != nil {
-		log.Error("can`t parse user_id from uuid :", err)
-		return nil, err
-	}
+	updateItems := make([]*repositories_transfer.CommentUpdateFieldInfo, 0)
 
-	updateItems := make([]*repository.UpdateItem, 0)
-
-	for _, item := range req.UpdateData {
-		updateItems = append(updateItems, &repository.UpdateItem{
+	for _, item := range updateInfo.Fields {
+		updateItems = append(updateItems, &repositories_transfer.CommentUpdateFieldInfo{
 			Name:  item.Name,
 			Value: item.Value,
 		})
 	}
 
-	post, err := g.postRepository.UpdatePost(ctx, repository.UpdateData{
-		Id:         postUUID,
+	post, err := g.postRepository.UpdatePost(ctx, repositories_transfer.UpdateCommentInfo{
+		Id:         updateInfo.PostId,
 		UpdateData: updateItems,
 	})
 	if err != nil {
@@ -174,13 +131,13 @@ func (g *PostService) UpdatePost(ctx context.Context, req *postsv1.UpdatePostReq
 		return nil, err
 	}
 
-	return &postsv1.UpdatePostResponse{
-		Id:   post.Id.String(),
-		Post: post.ConvertToProto(),
+	return &services_transfer.UpdatePostResult{
+		PostId: post.Id,
+		Post:   services_transfer.ConvertPostFromModel(post),
 	}, nil
 }
 
-func (g *PostService) DeleteUserPosts(ctx context.Context, userId uuid.UUID) error {
-	err := g.postRepository.DeleteUserPosts(ctx, userId)
+func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) error {
+	err := g.postRepository.DeleteUserPosts(ctx, deleteInfo.UserId)
 	return err
 }

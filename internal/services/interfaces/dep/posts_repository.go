@@ -8,7 +8,7 @@ import (
 )
 
 type PostCreator interface {
-	CreatePost(ctx context.Context, createData repositories_transfer.CreatePostData) (uuid.UUID, *models.Post, error)
+	CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, *models.Post, error)
 }
 
 type PostGetter interface {
@@ -22,5 +22,5 @@ type PostDeleter interface {
 }
 
 type PostUpdater interface {
-	UpdatePost(ctx context.Context, updateData repositories_transfer.UpdateData) (*models.Post, error)
+	UpdatePost(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) (*models.Post, error)
 }

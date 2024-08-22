@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/database"
-
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
-	_ "github.com/lib/pq"
 )
 
 type PostRepository struct {
@@ -21,13 +20,13 @@ func NewPostRepository(db database.DBWrapper) (*PostRepository, error) {
 	}, nil
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, createData CreatePostData) (uuid.UUID, *models.Post, error) {
+func (r *PostRepository) CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, *models.Post, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	fmt.Println(createData)
 
 	post := models.CreatePost(
-		createData.User_id,
+		createData.UserId,
 		createData.Title,
 		createData.TextContent,
 		createData.ImagesContent)
@@ -98,18 +97,18 @@ func (r *PostRepository) GetPost(ctx context.Context, id uuid.UUID) (*models.Pos
 	return &post, nil
 }
 
-func (r *PostRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error) {
+func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, uint, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 	posts := make([]*models.Post, 0)
 
-	offset := (page - 1) * size
+	offset := (getInfo.Page - 1) * getInfo.Size
 
 	query := builder.
 		Select("*").
 		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: user_id}).
-		Limit(size).
-		Offset(offset)
+		Where(squirrel.Eq{USER_ID_FIELD: getInfo.UserId}).
+		Limit(uint64(getInfo.Size)).
+		Offset(uint64(offset))
 
 	sql, args, err := query.ToSql()
 	if err != nil {
@@ -136,7 +135,7 @@ func (r *PostRepository) GetPostsByUserId(ctx context.Context, user_id uuid.UUID
 	countQuery := builder.
 		Select("COUNT(*)").
 		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: user_id})
+		Where(squirrel.Eq{USER_ID_FIELD: getInfo.UserId})
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
@@ -189,7 +188,7 @@ func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.
 	return &post, nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, updateData UpdateData) (*models.Post, error) {
+func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) (*models.Post, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
