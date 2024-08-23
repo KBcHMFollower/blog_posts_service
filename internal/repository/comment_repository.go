@@ -11,10 +11,12 @@ import (
 )
 
 const (
-	POSTS_TABLE    = "posts"
-	COMMENTS_TABLE = "comments"
-	ID_FIELD       = "id"
-	USER_ID_FIELD  = "user_id"
+	commentsIdCol      = "id"
+	commentsUserIdCol  = "user_id"
+	commentsPostIdCol  = "post_id"
+	commentsContentCol = "content"
+	commentsAllCol     = "*"
+	commentsSqlCount   = "COUNT(*)"
 )
 
 type CommentRepository struct {
@@ -33,8 +35,8 @@ func (r *CommentRepository) CreateComment(ctx context.Context, createData reposi
 	comment := models.CreateComment(createData.PostId, createData.UserId, createData.Content)
 
 	query := builder.
-		Insert(COMMENTS_TABLE).
-		Columns(ID_FIELD, USER_ID_FIELD, "post_id", "content").
+		Insert(database.CommentsTable).
+		Columns(commentsIdCol, commentsUserIdCol, commentsPostIdCol, commentsContentCol).
 		Values(comment.Id, comment.UserId, comment.PostId, comment.Content).
 		Suffix("RETURNING \"id\"")
 
@@ -52,9 +54,9 @@ func (r *CommentRepository) CreateComment(ctx context.Context, createData reposi
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
 	}
 
-	getSql, getArgs, err := builder.Select("*").
-		From(COMMENTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: insertId}).
+	getSql, getArgs, err := builder.Select(commentsAllCol).
+		From(database.CommentsTable).
+		Where(squirrel.Eq{commentsIdCol: insertId}).
 		ToSql()
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
@@ -75,9 +77,9 @@ func (r *CommentRepository) GetComment(ctx context.Context, commentId uuid.UUID)
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Select("*").
-		From(COMMENTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: commentId})
+		Select(commentsAllCol).
+		From(database.CommentsTable).
+		Where(squirrel.Eq{commentsIdCol: commentId})
 
 	sql, args, _ := query.ToSql()
 
@@ -99,9 +101,9 @@ func (r *CommentRepository) GetPostComments(ctx context.Context, postId uuid.UUI
 	offset := (page - 1) * size
 
 	query := builder.
-		Select("*").
-		From(COMMENTS_TABLE).
-		Where(squirrel.Eq{"post_id": postId}).
+		Select(commentsAllCol).
+		From(database.CommentsTable).
+		Where(squirrel.Eq{commentsPostIdCol: postId}).
 		Limit(size).
 		Offset(offset)
 
@@ -128,9 +130,9 @@ func (r *CommentRepository) GetPostComments(ctx context.Context, postId uuid.UUI
 	}
 
 	countQuery := builder.
-		Select("COUNT(*)").
-		From(COMMENTS_TABLE).
-		Where(squirrel.Eq{"post_id": postId})
+		Select(commentsSqlCount).
+		From(database.CommentsTable).
+		Where(squirrel.Eq{commentsPostIdCol: postId})
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
@@ -151,17 +153,17 @@ func (r *CommentRepository) DeleteComment(ctx context.Context, commentId uuid.UU
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Delete(COMMENTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: commentId})
+		Delete(database.CommentsTable).
+		Where(squirrel.Eq{commentsIdCol: commentId})
 
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	getSql, getArgs, err := builder.Select("*").
-		From(COMMENTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: commentId}).
+	getSql, getArgs, err := builder.Select(commentsAllCol).
+		From(database.CommentsTable).
+		Where(squirrel.Eq{commentsIdCol: commentId}).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("error in generate sql-query : %v", err)
@@ -186,10 +188,10 @@ func (r *CommentRepository) DeleteComment(ctx context.Context, commentId uuid.UU
 func (r *CommentRepository) UpdateComment(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) (*models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-	query := builder.Update(COMMENTS_TABLE).Where(squirrel.Eq{ID_FIELD: updateData.Id})
+	query := builder.Update(database.CommentsTable).Where(squirrel.Eq{commentsIdCol: updateData.Id})
 
 	for _, item := range updateData.UpdateData {
-		if item.Name == ID_FIELD || item.Name == USER_ID_FIELD || item.Name == "post_id" {
+		if item.Name == commentsIdCol || item.Name == commentsUserIdCol || item.Name == commentsPostIdCol {
 			continue
 		}
 		query = query.Set(item.Name, item.Value)
@@ -205,7 +207,7 @@ func (r *CommentRepository) UpdateComment(ctx context.Context, updateData reposi
 		return nil, fmt.Errorf("error in execute sql-query : %v", err)
 	}
 
-	queryGetComment := builder.Select("*").From(COMMENTS_TABLE).Where("id = ?", updateData.Id)
+	queryGetComment := builder.Select(commentsAllCol).From(database.CommentsTable).Where("id = ?", updateData.Id)
 	sqlGetComment, argsGetComment, _ := queryGetComment.ToSql()
 
 	row := r.db.QueryRowContext(ctx, sqlGetComment, argsGetComment...)

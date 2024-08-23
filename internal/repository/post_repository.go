@@ -11,14 +11,27 @@ import (
 	"github.com/google/uuid"
 )
 
+// TODO: ДОВЫНОСИТЬ ВСЕ В КОНСТАНТЫ
+// TODO: ВРЯД ЛИ НОРМ БРАТЬ СРАЗУ ВСЕ ПОЛЯ С ТАБЛИЦЫ
+const (
+	postsIdCol            = "id"
+	postsUserIdCol        = "user_id"
+	postsTitleCol         = "title"
+	postsTextContentCol   = "text_content"
+	postsImagesContentCol = "images_content"
+	postsCreatedAtCol     = "created_at"
+	postsAllCol           = "*"
+	postsSqlCount         = "COUNT(*)"
+)
+
 type PostRepository struct {
 	db database.DBWrapper
 }
 
-func NewPostRepository(db database.DBWrapper) (*PostRepository, error) {
+func NewPostRepository(db database.DBWrapper) *PostRepository {
 	return &PostRepository{
 		db: db,
-	}, nil
+	}
 }
 
 func (r *PostRepository) CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, *models.Post, error) {
@@ -35,8 +48,15 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData repositories
 	fmt.Println(post)
 
 	query := builder.
-		Insert(POSTS_TABLE).
-		Columns(ID_FIELD, USER_ID_FIELD, "title", "text_content", "images_content", "created_at").
+		Insert(database.PostsTable).
+		Columns(
+			postsIdCol,
+			postsUserIdCol,
+			postsTitleCol,
+			postsTextContentCol,
+			postsImagesContentCol,
+			postsCreatedAtCol,
+		).
 		Values(post.Id, post.UserId, post.Title, post.TextContent, post.ImagesContent, post.CreatedAt).
 		Suffix("RETURNING \"id\"")
 
@@ -54,9 +74,9 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData repositories
 	}
 
 	getSql, getArgs, err := builder.
-		Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: insertId}).
+		Select(postsAllCol).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsIdCol: insertId}).
 		ToSql()
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
@@ -81,9 +101,9 @@ func (r *PostRepository) GetPost(ctx context.Context, id uuid.UUID) (*models.Pos
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id})
+		Select(postsAllCol).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsIdCol: id})
 
 	sql, args, _ := query.ToSql()
 
@@ -105,9 +125,9 @@ func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositor
 	offset := (getInfo.Page - 1) * getInfo.Size
 
 	query := builder.
-		Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: getInfo.UserId}).
+		Select(postsAllCol).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsUserIdCol: getInfo.UserId}).
 		Limit(uint64(getInfo.Size)).
 		Offset(uint64(offset))
 
@@ -134,9 +154,9 @@ func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositor
 	}
 
 	countQuery := builder.
-		Select("COUNT(*)").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: getInfo.UserId})
+		Select(postsSqlCount).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsUserIdCol: getInfo.UserId})
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
@@ -157,17 +177,17 @@ func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Delete(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id})
+		Delete(database.PostsTable).
+		Where(squirrel.Eq{postsIdCol: id})
 
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	getSql, getArgs, err := builder.Select("*").
-		From(POSTS_TABLE).
-		Where(squirrel.Eq{ID_FIELD: id}).
+	getSql, getArgs, err := builder.Select(postsAllCol).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsIdCol: id}).
 		ToSql()
 	if err != nil {
 		return nil, fmt.Errorf("error in generate sql-query : %v", err)
@@ -193,11 +213,11 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Update(POSTS_TABLE).
+		Update(database.PostsTable).
 		Where("id = ?", updateData.Id)
 
 	for _, item := range updateData.UpdateData {
-		if item.Name == ID_FIELD || item.Name == USER_ID_FIELD {
+		if item.Name == postsIdCol || item.Name == postsUserIdCol {
 			continue
 		}
 		query = query.Set(item.Name, item.Value)
@@ -214,8 +234,8 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories
 	}
 
 	queryGetPost := builder.
-		Select("*").
-		From(POSTS_TABLE).
+		Select(postsAllCol).
+		From(database.PostsTable).
 		Where("id = ?", updateData.Id)
 	sqlGetPost, argsGetPost, _ := queryGetPost.ToSql()
 
@@ -235,8 +255,8 @@ func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, 
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Delete(POSTS_TABLE).
-		Where(squirrel.Eq{USER_ID_FIELD: userId})
+		Delete(database.PostsTable).
+		Where(squirrel.Eq{postsUserIdCol: userId})
 
 	toSql, args, err := query.ToSql()
 	if err != nil {

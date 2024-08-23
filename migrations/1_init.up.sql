@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS comments
 );
 CREATE INDEX IF NOT EXISTS  idx_post_id ON comments (post_id);
 
-CREATE TABLE IF NOT EXISTS transaction_events
+CREATE TABLE IF NOT EXISTS amqp_messages
 (
     event_id UUID PRIMARY KEY ,
     event_type TEXT NOT NULL ,
@@ -30,13 +30,13 @@ CREATE TABLE IF NOT EXISTS transaction_events
     status TEXT NOT NULL  DEFAULT 'waiting',
     retry_count INT DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_done ON transaction_events(status);
+CREATE INDEX IF NOT EXISTS idx_done ON transaction_outbox(status);
 
-CREATE TABLE IF NOT EXISTS requests
+CREATE TABLE IF NOT EXISTS request_keys
 (
     id UUID PRIMARY KEY ,
     idempotency_key UUID NOT NULL ,
     payload JSON NULL,
     status TEXT NOT NULL DEFAULT 'in_work'
 );
-CREATE INDEX IF NOT EXISTS idx_ikey ON requests(idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_ikey ON requests_keys(idempotency_key);

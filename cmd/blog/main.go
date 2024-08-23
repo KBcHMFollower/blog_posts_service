@@ -6,6 +6,7 @@ import (
 	sloglogger "github.com/KBcHMFollower/blog_posts_service/internal/logger/slog"
 )
 
+// TODO: НЕ ЗАБЫТЬ DOWN МИГРАЦИЮ ДОПОЛНИТЬ
 func main() {
 	cfg := config.MustLoad()
 

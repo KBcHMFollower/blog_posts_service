@@ -10,7 +10,7 @@ import (
 )
 
 type UserEventsHandler struct {
-	postsService   *services.PostService
+	postsService   *services.PostService //TODO: ТУТ ДОЛЖНЫ БЫТЬ ИНТЕРФЕЙСЫ
 	requestService *services.RequestsService
 }
 

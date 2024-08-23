@@ -7,39 +7,46 @@ import (
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
+	rep_utils "github.com/KBcHMFollower/blog_posts_service/internal/repository/lib"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 )
 
+const (
+	rKeysIdCol             = "id"
+	rKeysIdempotencyKeyCol = "idempotency_key"
+	rKeysPayloadCol        = "payload"
+	rKeysAllCol            = "*"
+)
+
 type RequestsStore interface {
-	Create(ctx context.Context, key uuid.UUID, payload string) (uuid.UUID, *models.Request, error)
-	Get(ctx context.Context, key uuid.UUID) (*models.Request, error)
+	Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, *models.Request, error)
+	Get(ctx context.Context, key uuid.UUID, tx *sql.Tx) (*models.Request, error)
 }
 
 type RequestsRepository struct {
 	db database.DBWrapper
 }
 
-func NewRequestsRepository(db database.DBWrapper) (*RequestsRepository, error) {
+func NewRequestsRepository(db database.DBWrapper) *RequestsRepository {
 	return &RequestsRepository{
 		db: db,
-	}, nil
+	}
 }
 
 func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, *models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-	executor := r.getExecutor(tx)
+	executor := rep_utils.GetExecutor(r.db, tx)
 
 	request := models.Request{
 		Id:             uuid.New(),
 		IdempotencyKey: info.Key,
-		Payload:        info.Payload,
 	}
 
 	query := builder.
-		Insert("requests").
-		Columns(ID_FIELD, "idempotency_key", "payload").
-		Values(request.Id, request.IdempotencyKey, request.Payload).
+		Insert(database.RequestKeysTable).
+		Columns(rKeysIdCol, rKeysIdempotencyKeyCol, rKeysPayloadCol).
+		Values(request.Id, request.IdempotencyKey).
 		Suffix("RETURNING \"id\"")
 
 	sql, args, err := query.ToSql()
@@ -56,9 +63,9 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 	}
 
 	getSql, getArgs, err := builder.
-		Select("*").
-		From("requests").
-		Where(squirrel.Eq{ID_FIELD: insertId}).
+		Select(rKeysAllCol).
+		From(database.RequestKeysTable).
+		Where(squirrel.Eq{rKeysIdCol: insertId}).
 		ToSql()
 	if err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
@@ -81,12 +88,12 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 
 func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx *sql.Tx) (*models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-	executor := r.getExecutor(tx)
+	executor := rep_utils.GetExecutor(r.db, tx)
 
 	query := builder.
-		Select("*").
-		From("requests").
-		Where(squirrel.Eq{"idempotency_key": key})
+		Select(rKeysAllCol).
+		From(database.RequestKeysTable).
+		Where(squirrel.Eq{rKeysIdempotencyKeyCol: key})
 
 	sql, args, _ := query.ToSql()
 
@@ -99,12 +106,4 @@ func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx *sql.Tx)
 	}
 
 	return &request, nil
-}
-
-func (r *RequestsRepository) getExecutor(tx *sql.Tx) database.Executor { //TODO: ПОДУМАТЬ ОБ ЭТОМ, ПИЗДАТЕНЬКО ВЫШЛО
-	if tx == nil {
-		return r.db
-	}
-
-	return tx
 }

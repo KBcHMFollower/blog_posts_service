@@ -7,7 +7,6 @@ import (
 type Request struct {
 	Id             uuid.UUID
 	IdempotencyKey uuid.UUID
-	Payload        string
 	Status         string
 }
 
@@ -15,7 +14,6 @@ func (r *Request) GetPointersArray() []interface{} {
 	return []interface{}{
 		&r.Id,
 		&r.IdempotencyKey,
-		&r.Payload,
 		&r.Status,
 	}
 }

@@ -33,7 +33,7 @@ func (rs *RequestsService) CheckExists(ctx context.Context, checkInfo services_t
 		slog.String("op", op),
 	)
 
-	res, err := rs.reqRepository.Get(ctx, checkInfo.Key)
+	res, err := rs.reqRepository.Get(ctx, checkInfo.Key, nil)
 	if err != nil {
 		log.Error(err.Error())
 		return false, fmt.Errorf("%s: %w", op, err)

@@ -38,7 +38,8 @@ type UpdatePostInfo struct {
 }
 
 type DeleteUserPostInfo struct {
-	UserId uuid.UUID
+	EventId uuid.UUID
+	UserId  uuid.UUID
 }
 
 type PostResult struct {

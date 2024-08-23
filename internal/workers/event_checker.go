@@ -15,7 +15,7 @@ type EventStore interface {
 }
 
 type EventChecker struct {
-	amqpClient amqpclient.AmqpClient
+	amqpClient amqpclient.AmqpClient //TODO: РАЗБИТЬ НА СЕНДЕР И КОНСЬЮМЕР
 	eventRep   EventStore
 	logger     *slog.Logger
 }

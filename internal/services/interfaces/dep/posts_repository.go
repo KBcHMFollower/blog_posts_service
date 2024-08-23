@@ -2,6 +2,7 @@ package services_dep
 
 import (
 	"context"
+	"database/sql"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
@@ -18,7 +19,7 @@ type PostGetter interface {
 
 type PostDeleter interface {
 	DeletePost(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	DeleteUserPosts(ctx context.Context, userId uuid.UUID) error
+	DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx *sql.Tx) error
 }
 
 type PostUpdater interface {

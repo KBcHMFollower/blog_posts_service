@@ -36,13 +36,18 @@ func New(
 	ContinueOrPanic(err)
 	workersApp := workers_app.New()
 
-	postRepository, err := repository.NewPostRepository(storeApp.PostgresStore.Store)
-	ContinueOrPanic(err)
-
+	postRepository := repository.NewPostRepository(storeApp.PostgresStore.Store)
 	commRepository := repository.NewCommentRepository(storeApp.PostgresStore.Store)
-	eventRepository, err := repository.NewEventRepository(storeApp.PostgresStore.Store)
+	eventRepository := repository.NewEventRepository(storeApp.PostgresStore.Store)
+	reqRepository := repository.NewRequestsRepository(storeApp.PostgresStore.Store)
 
-	postService := commentservice.NewPostsService(postRepository, log)
+	postService := commentservice.NewPostsService(
+		postRepository,
+		reqRepository,
+		eventRepository,
+		storeApp.PostgresStore.Store,
+		log,
+	)
 	commService := commentservice.NewCommentService(commRepository, log)
 
 	workersApp.AddWorker(workers.NewEventChecker(amqpApp.Client, eventRepository, log))

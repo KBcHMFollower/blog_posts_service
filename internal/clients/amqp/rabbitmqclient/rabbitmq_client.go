@@ -9,9 +9,8 @@ import (
 
 const (
 	DeleteUserExchange    = "direct-user-actions"
-	UserDeletedQueue      = "user-deleted"
-	UserPostsDeletedQueue = "user-posts-deleted"
-	UserCompensateQueue   = "user-compensate"
+	UserDeletedQueue      = amqpclient.UserDeletedEventKey
+	UserPostsDeletedQueue = amqpclient.PostsDeletedEventKey
 )
 
 type RabbitMQClient struct {
@@ -169,28 +168,6 @@ func DeclareQueues(ch *amqp.Channel) error {
 	if err = ch.QueueBind(
 		q.Name,
 		UserPostsDeletedQueue,
-		DeleteUserExchange,
-		false,
-		nil,
-	); err != nil {
-		return fmt.Errorf("failed to bind UserDeleted queue: %s", err)
-	}
-
-	q, err = ch.QueueDeclare(
-		UserCompensateQueue,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to declare UserDeleted queue: %s", err)
-	}
-
-	if err = ch.QueueBind(
-		q.Name,
-		UserCompensateQueue,
 		DeleteUserExchange,
 		false,
 		nil,

@@ -2,12 +2,27 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
+	rep_utils "github.com/KBcHMFollower/blog_posts_service/internal/repository/lib"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+)
+
+const (
+	messagesStatusCol    = "status"
+	messagesEventIdCol   = "event_id"
+	messagesAllCol       = "*"
+	messagesEventTypeCol = "event_type"
+	messagesPayloadCol   = "payload"
+)
+
+const (
+	SentStatus = "Sent"
 )
 
 type EventFilter struct {
@@ -17,8 +32,8 @@ type EventRepository struct {
 	db database.DBWrapper
 }
 
-func NewEventRepository(dbDriver database.DBWrapper) (*EventRepository, error) {
-	return &EventRepository{db: dbDriver}, nil
+func NewEventRepository(dbDriver database.DBWrapper) *EventRepository {
+	return &EventRepository{db: dbDriver}
 }
 
 func (r *EventRepository) GetEvents(ctx context.Context, filterTarget string, filterValue interface{}, limit uint64) ([]*models.EventInfo, error) {
@@ -28,8 +43,8 @@ func (r *EventRepository) GetEvents(ctx context.Context, filterTarget string, fi
 	eventInfos := make([]*models.EventInfo, 0)
 
 	query := builder.
-		Select("*").
-		From("transaction_events").
+		Select(messagesAllCol).
+		From(database.AmqpMessagesTable).
 		Where(squirrel.Eq{filterTarget: filterValue}).
 		Limit(limit)
 
@@ -64,9 +79,9 @@ func (r *EventRepository) SetSentStatusesInEvents(ctx context.Context, eventsId 
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Update("transaction_events").
-		Where(squirrel.Eq{"event_id": eventsId}).
-		Set("status", "sent")
+		Update(database.AmqpMessagesTable).
+		Where(squirrel.Eq{messagesEventIdCol: eventsId}).
+		Set(messagesStatusCol, SentStatus)
 
 	sql, args, err := query.ToSql()
 	if err != nil {
@@ -87,9 +102,9 @@ func (r *EventRepository) GetEventById(ctx context.Context, eventId uuid.UUID) (
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 	query := builder.
-		Select("*").
-		From("transaction_events").
-		Where(squirrel.Eq{"event_id": eventId})
+		Select(messagesAllCol).
+		From(database.AmqpMessagesTable).
+		Where(squirrel.Eq{messagesEventIdCol: eventId})
 
 	sql, args, err := query.ToSql()
 	if err != nil {
@@ -108,4 +123,26 @@ func (r *EventRepository) GetEventById(ctx context.Context, eventId uuid.UUID) (
 	}
 
 	return &eventInfo, nil
+}
+
+func (r *EventRepository) Create(ctx context.Context, info repositories_transfer.CreateEventInfo, tx *sql.Tx) error {
+	executor := rep_utils.GetExecutor(r.db, tx)
+	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+	query := builder.
+		Insert(database.AmqpMessagesTable).
+		Columns(messagesEventIdCol, messagesEventTypeCol, messagesPayloadCol).
+		Values(info.EventId, info.EventType, info.Payload) //TODO: ВОЗМОЖНО СТОИТ С ЭТИМ ЧТО-ТО ПРИДУМАТЬ, ПОТОМУ ЧТО СЕЙЧАТ, ЕСЛИ МЕНЯЕТСЯ МОДЕЛЬ, ПРИЙДЕТСЯ ИДТИ СЮДА И МЕНЯТЬ, ПОПРОБУЮ МАПУ
+
+	toSql, args, err := query.ToSql()
+	if err != nil {
+		return fmt.Errorf("error in generate toSql-query : %v", err)
+	}
+
+	row := executor.QueryRowContext(ctx, toSql, args...)
+	if row.Err() != nil {
+		return fmt.Errorf("error in executing toSql-query : %v", row.Err())
+	}
+
+	return nil
 }

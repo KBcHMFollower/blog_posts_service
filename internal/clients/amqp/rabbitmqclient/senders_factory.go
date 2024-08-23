@@ -13,7 +13,7 @@ type SendersStore struct {
 
 func NewSendersStore(ch *amqp.Channel) *SendersStore {
 	sendersMap := map[string]amqpclient.AmqpSender{
-		"postsDeleted": &PostsDeletedSender{ch: ch},
+		amqpclient.PostsDeletedEventKey: &PostsDeletedSender{ch: ch},
 	}
 
 	return &SendersStore{
