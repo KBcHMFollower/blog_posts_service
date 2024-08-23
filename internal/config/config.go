@@ -8,15 +8,20 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+type RabbitMq struct {
+	Addr string `yaml:"addr" env-required:"true"`
+}
+
 type GRPC struct {
 	Port    int           `yaml:"port" env-default:"4041"`
 	Timeout time.Duration `yaml:"timeout" env-default:"4s"`
 }
 
 type Config struct {
-	Env     string  `yaml:"env" env-default:"local"`
-	GRpc    GRPC    `yaml:"grpc" env-required:"true"`
-	Storage Storage `yaml:"storage" env-required:"true"`
+	Env      string   `yaml:"env" env-default:"local"`
+	GRpc     GRPC     `yaml:"grpc_app" env-required:"true"`
+	Storage  Storage  `yaml:"storage" env-required:"true"`
+	RabbitMq RabbitMq `yaml:"rabbitmq" env-required:"true"`
 }
 
 type Storage struct {

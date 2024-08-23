@@ -2,8 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"github.com/KBcHMFollower/blog_posts_service/database"
+	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"
@@ -25,8 +26,9 @@ func NewRequestsRepository(db database.DBWrapper) (*RequestsRepository, error) {
 	}, nil
 }
 
-func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo) (uuid.UUID, *models.Request, error) {
+func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, *models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	executor := r.getExecutor(tx)
 
 	request := models.Request{
 		Id:             uuid.New(),
@@ -47,7 +49,7 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 
 	var insertId string
 
-	idRow := r.db.QueryRowContext(ctx, sql, args...)
+	idRow := executor.QueryRowContext(ctx, sql, args...)
 
 	if err := idRow.Scan(&insertId); err != nil {
 		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
@@ -62,7 +64,7 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
 	}
 
-	row := r.db.QueryRowContext(ctx, getSql, getArgs...)
+	row := executor.QueryRowContext(ctx, getSql, getArgs...)
 
 	fmt.Println("1")
 
@@ -77,8 +79,9 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 	return createdRequest.Id, &createdRequest, nil
 }
 
-func (r *PostRepository) Get(ctx context.Context, key uuid.UUID) (*models.Request, error) {
+func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx *sql.Tx) (*models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	executor := r.getExecutor(tx)
 
 	query := builder.
 		Select("*").
@@ -89,11 +92,19 @@ func (r *PostRepository) Get(ctx context.Context, key uuid.UUID) (*models.Reques
 
 	var request models.Request
 
-	row := r.db.QueryRowContext(ctx, sql, args...)
+	row := executor.QueryRowContext(ctx, sql, args...)
 	err := row.Scan(request.GetPointersArray()...)
 	if err != nil {
 		return nil, fmt.Errorf("can`t scan properties from db : %v", err)
 	}
 
 	return &request, nil
+}
+
+func (r *RequestsRepository) getExecutor(tx *sql.Tx) database.Executor { //TODO: ПОДУМАТЬ ОБ ЭТОМ, ПИЗДАТЕНЬКО ВЫШЛО
+	if tx == nil {
+		return r.db
+	}
+
+	return tx
 }

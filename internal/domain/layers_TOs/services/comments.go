@@ -1,8 +1,10 @@
 package services_transfer
 
 import (
+	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type CommUpdateFieldInfo struct {
@@ -80,4 +82,25 @@ func ConvertCommentsArrayFromModels(models []*models.Comment) []CommentResult {
 	}
 
 	return results
+}
+
+func (c *CommentResult) ToProto() *commentsv1.Comment {
+	return &commentsv1.Comment{
+		Id:        c.CommId.String(),
+		PostId:    c.PostId.String(),
+		UserId:    c.UserId.String(),
+		Content:   c.Content,
+		Likes:     int32(c.Likes),
+		CreatedAt: &timestamppb.Timestamp{},
+	} //TODO: дата зоздания елиента ебать не должна
+}
+
+func CommentsArrayProto(c []CommentResult) []*commentsv1.Comment {
+	var res = make([]*commentsv1.Comment, 0, len(c))
+
+	for _, comment := range c {
+		res = append(res, comment.ToProto())
+	}
+
+	return res
 }

@@ -36,18 +36,12 @@ func (rs *RequestsService) CheckExists(ctx context.Context, checkInfo services_t
 	res, err := rs.reqRepository.Get(ctx, checkInfo.Key)
 	if err != nil {
 		log.Error(err.Error())
-		return true, fmt.Errorf("%s: %w", op, err)
+		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if res != nil {
-		return true, nil
+	if res == nil {
+		return false, nil
 	}
 
-	_, _, err = rs.reqRepository.Create(ctx, checkInfo.Key, checkInfo.Payload)
-	if err != nil {
-		log.Error(err.Error())
-		return true, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return false, nil
+	return true, nil
 }

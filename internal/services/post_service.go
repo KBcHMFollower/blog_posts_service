@@ -16,9 +16,15 @@ type PostsStore interface {
 	services_dep.PostUpdater
 }
 
+type RequestStore interface {
+	services_dep.RequestsCreator
+	services_dep.RequestsGetter
+}
+
 type PostService struct {
-	postRepository PostsStore
-	log            *slog.Logger
+	postRepository     PostsStore
+	requestsRepository RequestStore
+	log                *slog.Logger
 }
 
 func NewPostsService(postRepository PostsStore, log *slog.Logger) *PostService {
@@ -88,7 +94,7 @@ func (g *PostService) CreatePost(ctx context.Context, createInfo *services_trans
 	)
 
 	postId, post, err := g.postRepository.CreatePost(ctx, repositories_transfer.CreatePostInfo{
-		User_id:       createInfo.UserId,
+		UserId:        createInfo.UserId,
 		Title:         createInfo.Title,
 		TextContent:   createInfo.TextContent,
 		ImagesContent: createInfo.ImagesContent,
@@ -138,6 +144,5 @@ func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_trans
 }
 
 func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) error {
-	err := g.postRepository.DeleteUserPosts(ctx, deleteInfo.UserId)
-	return err
+	req, err := g.requestsRepository.Get() //TODO
 }

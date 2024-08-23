@@ -13,7 +13,7 @@ type PostCreator interface {
 
 type PostGetter interface {
 	GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	GetPostsByUserId(ctx context.Context, user_id uuid.UUID, size uint64, page uint64) ([]*models.Post, uint, error)
+	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, uint, error)
 }
 
 type PostDeleter interface {
@@ -22,5 +22,5 @@ type PostDeleter interface {
 }
 
 type PostUpdater interface {
-	UpdatePost(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) (*models.Post, error)
+	UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) (*models.Post, error)
 }

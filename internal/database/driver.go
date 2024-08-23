@@ -3,27 +3,19 @@ package database
 import (
 	"context"
 	"database/sql"
-	"fmt"
-
 	_ "github.com/lib/pq"
 )
+
+type Executor interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
 
 type DBWrapper interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
-
-type DBDriver struct {
-	*sql.DB
-}
-
-func New(connectionString string) (*DBDriver, *sql.DB, error) {
-	db, err := sql.Open("postgres", connectionString)
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error in process db connection : %v", err)
-	}
-
-	return &DBDriver{db}, db, nil
+	Close() error
 }

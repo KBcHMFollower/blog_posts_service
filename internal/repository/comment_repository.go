@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
-	"github.com/KBcHMFollower/blog_posts_service/database"
+	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/Masterminds/squirrel"

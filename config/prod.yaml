@@ -5,3 +5,5 @@ grpc:
 storage:
   connection_string: "host=posts-db port=5432 user=postgres password=admin dbname=golang_posts sslmode=disable"
   migration_path: "./migrations"
+rabbitmq:
+  addr: "amqp_app://localhost:5672"

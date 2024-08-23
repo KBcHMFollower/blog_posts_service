@@ -1,6 +1,7 @@
 package services_transfer
 
 import (
+	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
 )
@@ -86,5 +87,25 @@ func ConvertPostsArrayFromModel(posts []*models.Post) []PostResult {
 		results = append(results, ConvertPostFromModel(post))
 	}
 
+	return results
+}
+
+func (p *PostResult) ToProto() *postsv1.Post {
+	return &postsv1.Post{
+		Id:            p.PostId.String(),
+		UserId:        p.UserId.String(),
+		Title:         p.Title,
+		TextContent:   p.TextContent,
+		ImagesContent: p.ImagesContent,
+		Likes:         p.Likes,
+		CreatedAt:     nil,
+	} //TODO: CreatedAt не нужно
+}
+
+func ConvertPostArrayToProto(posts []PostResult) []*postsv1.Post {
+	results := make([]*postsv1.Post, 0, len(posts))
+	for _, post := range posts {
+		results = append(results, post.ToProto())
+	}
 	return results
 }

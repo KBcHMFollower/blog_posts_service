@@ -34,7 +34,7 @@ func (g *GRPCApp) Run() error {
 		slog.String("op", op),
 	)
 
-	log.Info("grpc server is trying to get up")
+	log.Info("grpc_app server is trying to get up")
 
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", g.port))
 	if err != nil {
@@ -46,7 +46,7 @@ func (g *GRPCApp) Run() error {
 
 	if err := g.GRPCServer.Serve(l); err != nil {
 		log.Error("server startup error ", err)
-		return fmt.Errorf("error in starting grpc server: %v", err)
+		return fmt.Errorf("error in starting grpc_app server: %v", err)
 	}
 
 	return nil
