@@ -21,16 +21,6 @@ func (uh *UserEventsHandler) HandleUserDeletedEvent(message []byte) error {
 		return fmt.Errorf("cant`t pars message: %w", err)
 	}
 
-	res, err := uh.requestService.CheckExists(context.TODO(), services_transfer.RequestsCheckExistsInfo{
-		Key: userMessage.EventId,
-	})
-	if err != nil {
-		return fmt.Errorf("check exists error: %w", err)
-	}
-	if res {
-		return fmt.Errorf("request is exists: %w", err)
-	}
-
 	if err := uh.postsService.DeleteUserPosts(context.TODO(), services_transfer.DeleteUserPostInfo{
 		UserId: userMessage.UserId,
 	}); err != nil {

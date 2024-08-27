@@ -166,7 +166,7 @@ func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_trans
 	}, nil
 }
 
-func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) error { //TODO: ПОРЕВЬЮВИТЬ
+func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) error { //TODO: СДЕЛАТЬ DEFER
 	tx, err := g.txCreator.BeginTx(ctx, nil)
 	if err != nil {
 		g.log.Error("can`t begin transaction :", err)

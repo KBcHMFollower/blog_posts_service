@@ -34,7 +34,7 @@ func NewRequestsRepository(db database.DBWrapper) *RequestsRepository {
 	}
 }
 
-func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, *models.Request, error) {
+func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx database.Transaction) (uuid.UUID, *models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 	executor := rep_utils.GetExecutor(r.db, tx)
 
@@ -86,7 +86,7 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 	return createdRequest.Id, &createdRequest, nil
 }
 
-func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx *sql.Tx) (*models.Request, error) {
+func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx database.Transaction) (*models.Request, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 	executor := rep_utils.GetExecutor(r.db, tx)
 

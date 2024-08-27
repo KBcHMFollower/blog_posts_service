@@ -13,16 +13,20 @@ const (
 	RequestKeysTable  = "request_keys"
 )
 
-type Executor interface {
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+type DBWrapper interface {
+	Executor
+	BeginTxCtx(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	Stop() error
 }
 
-type DBWrapper interface {
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-	Close() error
+type Transaction interface {
+	Executor
+	Commit() error
+	Rollback() error
+}
+
+type Executor interface {
+	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
 }

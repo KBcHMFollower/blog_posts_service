@@ -29,6 +29,7 @@ func NewCommentRepository(db database.DBWrapper) *CommentRepository {
 	}
 }
 
+// TODO: ДОЛЖНО БЫТЬ РАЗБИТО НА НЕСКОЛЬКО
 func (r *CommentRepository) CreateComment(ctx context.Context, createData repositories_transfer.CreateCommentInfo) (uuid.UUID, *models.Comment, error) {
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
@@ -36,8 +37,12 @@ func (r *CommentRepository) CreateComment(ctx context.Context, createData reposi
 
 	query := builder.
 		Insert(database.CommentsTable).
-		Columns(commentsIdCol, commentsUserIdCol, commentsPostIdCol, commentsContentCol).
-		Values(comment.Id, comment.UserId, comment.PostId, comment.Content).
+		SetMap(map[string]interface{}{
+			commentsIdCol:      comment.Id,
+			commentsUserIdCol:  comment.UserId,
+			commentsPostIdCol:  comment.PostId,
+			commentsContentCol: comment.Content,
+		}).
 		Suffix("RETURNING \"id\"")
 
 	sql, args, err := query.ToSql()
@@ -47,11 +52,8 @@ func (r *CommentRepository) CreateComment(ctx context.Context, createData reposi
 	}
 
 	var insertId string
-
-	idRow := r.db.QueryRowContext(ctx, sql, args...)
-
-	if err := idRow.Scan(&insertId); err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
+	if err := r.db.GetContext(ctx, &insertId, sql, args...); err != nil {
+		return uuid.Nil, nil, fmt.Errorf("error in inserting sql : %v", err)
 	}
 
 	getSql, getArgs, err := builder.Select(commentsAllCol).

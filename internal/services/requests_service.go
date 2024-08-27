@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
@@ -26,7 +27,8 @@ func NewRequestsService(reqRepository repository.RequestsStore, log *slog.Logger
 	}
 }
 
-func (rs *RequestsService) CheckExists(ctx context.Context, checkInfo services_transfer.RequestsCheckExistsInfo) (bool, error) {
+// TODO: ДОБАВИТЬ ИНТЕРЦЕПТОРЫ С ЭТИМ МЕТОДОМ
+func (rs *RequestsService) CheckAndCreate(ctx context.Context, checkInfo services_transfer.RequestsCheckExistsInfo) (bool, error) {
 	op := "PostService.GetUserPosts"
 
 	log := rs.log.With(
@@ -39,9 +41,17 @@ func (rs *RequestsService) CheckExists(ctx context.Context, checkInfo services_t
 		return false, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if res == nil {
-		return false, nil
+	if res != nil {
+		return true, nil
 	}
 
-	return true, nil
+	_, _, err = rs.reqRepository.Create(ctx, repositories_transfer.CreateRequestInfo{
+		Key: checkInfo.Key,
+	}, nil)
+	if err != nil {
+		log.Error(err.Error())
+		return false, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return false, nil
 }

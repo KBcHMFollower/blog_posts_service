@@ -250,7 +250,7 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories
 	return &post, nil
 }
 
-func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx *sql.Tx) error { //TODO
+func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx database.Transaction) error { //TODO
 	executor := r.getExecutor(tx)
 	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
