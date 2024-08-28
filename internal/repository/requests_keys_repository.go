@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
@@ -15,7 +14,6 @@ import (
 const (
 	rKeysIdCol             = "id"
 	rKeysIdempotencyKeyCol = "idempotency_key"
-	rKeysPayloadCol        = "payload"
 	rKeysAllCol            = "*"
 )
 
@@ -25,17 +23,20 @@ type RequestsStore interface {
 }
 
 type RequestsRepository struct {
-	db database.DBWrapper
+	db       database.DBWrapper
+	qBuilder squirrel.StatementBuilderType //TODO: СЛИШКОМ ПРЯМАЯ ЗАВИСИМОСТЬ
 }
 
 func NewRequestsRepository(db database.DBWrapper) *RequestsRepository {
 	return &RequestsRepository{
-		db: db,
+		db:       db,
+		qBuilder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
 
-func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx database.Transaction) (uuid.UUID, *models.Request, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+func (r *RequestsRepository) Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx database.Transaction) (uuid.UUID, error) {
+	op := "RequestRepository.create"
+
 	executor := rep_utils.GetExecutor(r.db, tx)
 
 	request := models.Request{
@@ -43,66 +44,46 @@ func (r *RequestsRepository) Create(ctx context.Context, info repositories_trans
 		IdempotencyKey: info.Key,
 	}
 
-	query := builder.
+	query := r.qBuilder.
 		Insert(database.RequestKeysTable).
-		Columns(rKeysIdCol, rKeysIdempotencyKeyCol, rKeysPayloadCol).
-		Values(request.Id, request.IdempotencyKey).
+		SetMap(map[string]interface{}{
+			rKeysIdCol:             request.Id,
+			rKeysIdempotencyKeyCol: request.IdempotencyKey,
+		}).
 		Suffix("RETURNING \"id\"")
 
-	sql, args, err := query.ToSql()
+	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
+		return uuid.New(), rep_utils.GenerateSqlErr(err, op)
 	}
 
-	var insertId string
-
-	idRow := executor.QueryRowContext(ctx, sql, args...)
-
-	if err := idRow.Scan(&insertId); err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
+	var insertId uuid.UUID
+	if err := executor.GetContext(ctx, &insertId, sqlStr, args...); err != nil {
+		return uuid.New(), rep_utils.ExecuteSqlErr(err, op)
 	}
 
-	getSql, getArgs, err := builder.
-		Select(rKeysAllCol).
-		From(database.RequestKeysTable).
-		Where(squirrel.Eq{rKeysIdCol: insertId}).
-		ToSql()
-	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
-	}
-
-	row := executor.QueryRowContext(ctx, getSql, getArgs...)
-
-	fmt.Println("1")
-
-	var createdRequest models.Request
-	err = row.Scan(createdRequest.GetPointersArray()...)
-
-	fmt.Println(createdRequest)
-	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
-	}
-
-	return createdRequest.Id, &createdRequest, nil
+	return insertId, nil
 }
 
 func (r *RequestsRepository) Get(ctx context.Context, key uuid.UUID, tx database.Transaction) (*models.Request, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	op := "RequestRepository.get"
+
 	executor := rep_utils.GetExecutor(r.db, tx)
 
-	query := builder.
+	query := r.qBuilder.
 		Select(rKeysAllCol).
 		From(database.RequestKeysTable).
 		Where(squirrel.Eq{rKeysIdempotencyKeyCol: key})
 
-	sql, args, _ := query.ToSql()
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return nil, rep_utils.GenerateSqlErr(err, op)
+	}
 
 	var request models.Request
 
-	row := executor.QueryRowContext(ctx, sql, args...)
-	err := row.Scan(request.GetPointersArray()...)
-	if err != nil {
-		return nil, fmt.Errorf("can`t scan properties from db : %v", err)
+	if err := executor.GetContext(ctx, &request, sqlStr, args...); err != nil {
+		return nil, rep_utils.ExecuteSqlErr(err, op)
 	}
 
 	return &request, nil

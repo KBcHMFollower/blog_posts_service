@@ -6,6 +6,7 @@ import (
 	"fmt"
 	amqpclient "github.com/KBcHMFollower/blog_posts_service/internal/clients/amqp"
 	"github.com/KBcHMFollower/blog_posts_service/internal/clients/amqp/messages"
+	"github.com/KBcHMFollower/blog_posts_service/internal/domain"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
@@ -55,38 +56,41 @@ func NewPostsService(
 
 func (g *PostService) GetUserPosts(ctx context.Context, getInfo *services_transfer.GetUserPostsInfo) (*services_transfer.GetUserPostsResult, error) {
 	op := "PostService.GetUserPosts"
-
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	posts, totalCount, err := g.postRepository.GetPostsByUserId(ctx, repositories_transfer.GetPostByUserIdInfo{
+	posts, err := g.postRepository.GetPostsByUserId(ctx, repositories_transfer.GetPostByUserIdInfo{
 		UserId: getInfo.UserId,
 		Size:   uint32(getInfo.Size),
 		Page:   uint32(getInfo.Page),
 	})
 	if err != nil {
-		log.Error("repository error", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to get posts for user %d: %v", getInfo.UserId, err))
+		return nil, domain.AddOpInErr(err, op)
+	}
+	total, err := g.postRepository.GetUserPostsCount(ctx, getInfo.UserId)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to get posts count for user %d: %v", getInfo.UserId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	return &services_transfer.GetUserPostsResult{
 		Posts:      services_transfer.ConvertPostsArrayFromModel(posts),
-		TotalCount: int32(totalCount),
+		TotalCount: int32(total),
 	}, nil
 }
 
 func (g *PostService) GetPost(ctx context.Context, getInfo *services_transfer.GetPostInfo) (*services_transfer.GetPostResult, error) {
 	op := "PostService.GetPost"
-
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
 	post, err := g.postRepository.GetPost(ctx, getInfo.PostId)
 	if err != nil {
-		log.Error("can`t get user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to get post for post %d: %v", getInfo.PostId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	return &services_transfer.GetPostResult{
@@ -101,9 +105,9 @@ func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_trans
 		slog.String("op", op),
 	)
 
-	if _, err := g.postRepository.DeletePost(ctx, deleteInfo.PostId); err != nil {
-		log.Error("repository error", err)
-		return err
+	if err := g.postRepository.DeletePost(ctx, deleteInfo.PostId); err != nil {
+		log.Error(fmt.Sprintf("failed to delete post %d: %v", deleteInfo.PostId, err))
+		return domain.AddOpInErr(err, op)
 	}
 
 	return nil
@@ -111,23 +115,25 @@ func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_trans
 
 func (g *PostService) CreatePost(ctx context.Context, createInfo *services_transfer.CreatePostInfo) (*services_transfer.CreatePostResult, error) {
 	op := "PostService.CreatePost"
-
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	postId, post, err := g.postRepository.CreatePost(ctx, repositories_transfer.CreatePostInfo{
+	postId, err := g.postRepository.CreatePost(ctx, repositories_transfer.CreatePostInfo{
 		UserId:        createInfo.UserId,
 		Title:         createInfo.Title,
 		TextContent:   createInfo.TextContent,
 		ImagesContent: createInfo.ImagesContent,
 	})
 	if err != nil {
-		log.Error("can`t create user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to create post for user %d: %v", createInfo.UserId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
-
-	fmt.Println(postId, post)
+	post, err := g.postRepository.GetPost(ctx, postId)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to get post for post %d: %v", postId, err))
+		return nil, domain.AddOpInErr(err, op)
+	}
 
 	return &services_transfer.CreatePostResult{
 		PostId: postId,
@@ -156,8 +162,8 @@ func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_trans
 		UpdateData: updateItems,
 	})
 	if err != nil {
-		log.Error("can`t update user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to update post for post %d: %v", updateInfo.PostId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	return &services_transfer.UpdatePostResult{
@@ -166,51 +172,62 @@ func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_trans
 	}, nil
 }
 
-func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) error { //TODO: СДЕЛАТЬ DEFER
+func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) (resErr error) { //TODO: СДЕЛАТЬ DEFER
+	op := "PostsService.deleteUserPosts"
+
 	tx, err := g.txCreator.BeginTx(ctx, nil)
 	if err != nil {
 		g.log.Error("can`t begin transaction :", err)
-		return g.createPostDeleteFeedbackEvent(
+		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
 			ctx,
 			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
 			err,
-		)
+		), op)
 	}
+	defer func() {
 
+	}()
+	//TODO: ОСТАНОВИЛСЯ ЗДЕСЬ
 	if err := g.postRepository.DeleteUserPosts(ctx, deleteInfo.UserId, tx); err != nil {
 		g.log.Error("can`t delete user from db :", err)
 		rbErr := tx.Rollback()
-		return g.createPostDeleteFeedbackEvent(
+		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
 			ctx,
 			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
 			fmt.Errorf("can`t delete user: %v; rollback err: %v", err, rbErr),
-		) //TODO: не уверен, что ошибки так заворачиваются
+		), op)
+		//TODO: не уверен, что ошибки так заворачиваются
 	}
 
-	if _, _, err := g.requestsRepository.Create(ctx, repositories_transfer.CreateRequestInfo{
+	if _, err := g.requestsRepository.Create(ctx, repositories_transfer.CreateRequestInfo{
 		Key: deleteInfo.EventId,
 	}, tx); err != nil {
 		g.log.Error("can`t create request from db :", err)
 		rbErr := tx.Rollback()
-		return g.createPostDeleteFeedbackEvent(
+		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
 			ctx,
 			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
 			fmt.Errorf("can`t delete user: %v; rollback err: %v", err, rbErr),
-		)
+		), op)
 	}
 
-	return g.createPostDeleteFeedbackEvent(
+	if err := g.createPostDeleteFeedbackEvent(
 		ctx,
 		messages.PostsDeleted{Status: messages.Success, EventId: deleteInfo.EventId},
 		nil,
-	)
+	); err != nil {
+		log.Error("can`t create post delete request from db :", err)
+		return domain.AddOpInErr(err, op)
+	}
+	return nil
 }
 
 func (g *PostService) createPostDeleteFeedbackEvent(ctx context.Context, message messages.PostsDeleted, outErr error) error { //TODO: ПОЧЕКАТЬ МОЖНО ЛИ ДАВАТЬ ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ P.S: В РЕПОЗИТОРИЯХ ТОЖЕ САМОЕ
+	op := "PostsService.createPostDeleteFeedbackEvent"
 
 	payload, err := json.Marshal(message)
 	if err != nil {
-		return fmt.Errorf("%v;can`t parse message: %v", outErr, err)
+		return domain.AddOpInErr(err, op)
 	}
 
 	if err := g.eventsRepository.Create(ctx, repositories_transfer.CreateEventInfo{
@@ -218,7 +235,7 @@ func (g *PostService) createPostDeleteFeedbackEvent(ctx context.Context, message
 		EventType: amqpclient.PostsDeletedEventKey,
 		Payload:   payload,
 	}, nil); err != nil {
-		return fmt.Errorf("%v;can`t create post-deleted-feedback: %v", outErr, err)
+		return domain.AddOpInErr(err, op)
 	}
 
 	return nil

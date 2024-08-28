@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
+	"github.com/KBcHMFollower/blog_posts_service/internal/domain"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
@@ -30,15 +32,19 @@ func NewCommentService(commReP CommentsStore, log *slog.Logger) *CommentsService
 
 func (s *CommentsService) GetPostComments(ctx context.Context, getInfo *services_transfer.GetPostCommentsInfo) (*services_transfer.GetPostCommentsResult, error) {
 	op := "CommentsService.GetPostComments"
-
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	comments, totalCount, err := s.commRep.GetPostComments(ctx, getInfo.PostId, uint64(getInfo.Size), uint64(getInfo.Page))
+	comments, err := s.commRep.GetPostComments(ctx, getInfo.PostId, uint64(getInfo.Size), uint64(getInfo.Page))
 	if err != nil {
-		log.Error("repository error", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to get comments for post %d: %v", getInfo.PostId, err))
+		return nil, domain.AddOpInErr(err, op)
+	}
+	total, err := s.commRep.GetPostCommentsCount(ctx, getInfo.PostId)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to get comments count for post %d: %v", getInfo.PostId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	resComms := make([]*commentsv1.Comment, 0)
@@ -48,22 +54,21 @@ func (s *CommentsService) GetPostComments(ctx context.Context, getInfo *services
 		resComms = append(resComms, resPost)
 	}
 	return &services_transfer.GetPostCommentsResult{
-		TotalCount: int32(totalCount),
+		TotalCount: int32(total),
 		Comments:   services_transfer.ConvertCommentsArrayFromModels(comments),
 	}, nil
 }
 
 func (s *CommentsService) GetComment(ctx context.Context, getInfo *services_transfer.GetCommentInfo) (*services_transfer.GetCommentResult, error) {
 	op := "CommentsService.GetComment"
-
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
 	comment, err := s.commRep.GetComment(ctx, getInfo.CommId)
 	if err != nil {
-		log.Error("can`t get user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to get comment for comment %d: %v", getInfo.CommId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	return &services_transfer.GetCommentResult{
@@ -78,9 +83,9 @@ func (s *CommentsService) DeleteComment(ctx context.Context, deleteInfo *service
 		slog.String("op", op),
 	)
 
-	if _, err := s.commRep.DeleteComment(ctx, deleteInfo.CommId); err != nil {
-		log.Error("can`t delete user from db :", err)
-		return err
+	if err := s.commRep.DeleteComment(ctx, deleteInfo.CommId); err != nil {
+		log.Error(fmt.Sprintf("failed to delete comment %d: %v", deleteInfo.CommId, err))
+		return domain.AddOpInErr(err, op)
 	}
 
 	return nil
@@ -88,7 +93,6 @@ func (s *CommentsService) DeleteComment(ctx context.Context, deleteInfo *service
 
 func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *services_transfer.UpdateCommentInfo) (*services_transfer.UpdateCommentResult, error) {
 	op := "CommentsService.UpdateComment"
-
 	log := s.log.With(
 		slog.String("op", op),
 	)
@@ -102,13 +106,17 @@ func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *service
 		})
 	}
 
-	comm, err := s.commRep.UpdateComment(ctx, repositories_transfer.UpdateCommentInfo{
+	if err := s.commRep.UpdateComment(ctx, repositories_transfer.UpdateCommentInfo{
 		Id:         updateInfo.CommId,
 		UpdateData: updateItems,
-	})
+	}); err != nil {
+		log.Error(fmt.Sprintf("failed to update comment %d: %v", updateInfo.CommId, err))
+		return nil, domain.AddOpInErr(err, op)
+	}
+	comm, err := s.commRep.GetComment(ctx, updateInfo.CommId)
 	if err != nil {
-		log.Error("can`t update user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to get comment %d: %v", updateInfo.CommId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
 
 	return &services_transfer.UpdateCommentResult{
@@ -119,20 +127,20 @@ func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *service
 
 func (s *CommentsService) CreateComment(ctx context.Context, createInfo *services_transfer.CreateCommentInfo) (*services_transfer.CreateCommentResult, error) {
 	op := "CommentsService.CreateComment"
-
 	log := s.log.With(
 		slog.String("op", op),
 	)
 
-	commId, comm, err := s.commRep.CreateComment(ctx, repositories_transfer.CreateCommentInfo{
+	commId, err := s.commRep.CreateComment(ctx, repositories_transfer.CreateCommentInfo{
 		PostId:  createInfo.PostId,
 		UserId:  createInfo.UserId,
 		Content: createInfo.Content, //TODO: ВРОДЕ ЕЩЕ КАРТИНКИ МОЖНО
 	})
 	if err != nil {
-		log.Error("can`t create user from db :", err)
-		return nil, err
+		log.Error(fmt.Sprintf("failed to create comment %d: %v", createInfo.PostId, err))
+		return nil, domain.AddOpInErr(err, op)
 	}
+	comm, err := s.commRep.GetComment(ctx, commId)
 
 	return &services_transfer.CreateCommentResult{
 		CommId:  commId,

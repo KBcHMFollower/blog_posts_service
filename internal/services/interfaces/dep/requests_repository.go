@@ -9,7 +9,7 @@ import (
 )
 
 type RequestsCreator interface {
-	Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, *models.Request, error)
+	Create(ctx context.Context, info repositories_transfer.CreateRequestInfo, tx *sql.Tx) (uuid.UUID, error)
 }
 
 type RequestsGetter interface {

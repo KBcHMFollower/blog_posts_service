@@ -9,16 +9,17 @@ import (
 )
 
 type PostCreator interface {
-	CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, *models.Post, error)
+	CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, error)
 }
 
 type PostGetter interface {
 	GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, uint, error)
+	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, error)
+	GetUserPostsCount(ctx context.Context, userId uuid.UUID) (uint, error)
 }
 
 type PostDeleter interface {
-	DeletePost(ctx context.Context, id uuid.UUID) (*models.Post, error)
+	DeletePost(ctx context.Context, id uuid.UUID) error
 	DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx *sql.Tx) error
 }
 

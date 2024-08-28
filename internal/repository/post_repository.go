@@ -2,11 +2,10 @@ package repository
 
 import (
 	"context"
-	"database/sql"
-	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
+	rep_utils "github.com/KBcHMFollower/blog_posts_service/internal/repository/lib"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 )
@@ -25,19 +24,19 @@ const (
 )
 
 type PostRepository struct {
-	db database.DBWrapper
+	db       database.DBWrapper
+	qBuilder squirrel.StatementBuilderType //TODO: СЛИШКОМ ПРЯМАЯ ЗАВИСИМОСТЬ
 }
 
 func NewPostRepository(db database.DBWrapper) *PostRepository {
 	return &PostRepository{
-		db: db,
+		db:       db,
+		qBuilder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, *models.Post, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-
-	fmt.Println(createData)
+func (r *PostRepository) CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, error) {
+	op := "PostRepository.createPost"
 
 	post := models.CreatePost(
 		createData.UserId,
@@ -45,176 +44,125 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData repositories
 		createData.TextContent,
 		createData.ImagesContent)
 
-	fmt.Println(post)
-
-	query := builder.
+	query := r.qBuilder.
 		Insert(database.PostsTable).
-		Columns(
-			postsIdCol,
-			postsUserIdCol,
-			postsTitleCol,
-			postsTextContentCol,
-			postsImagesContentCol,
-			postsCreatedAtCol,
-		).
-		Values(post.Id, post.UserId, post.Title, post.TextContent, post.ImagesContent, post.CreatedAt).
+		SetMap(map[string]interface{}{
+			postsIdCol:            post.Id,
+			postsUserIdCol:        post.UserId,
+			postsTitleCol:         post.Title,
+			postsTextContentCol:   post.TextContent,
+			postsImagesContentCol: post.ImagesContent,
+			postsCreatedAtCol:     post.CreatedAt,
+		}).
 		Suffix("RETURNING \"id\"")
 
-	sql, args, err := query.ToSql()
+	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
+		return uuid.New(), rep_utils.GenerateSqlErr(err, op)
 	}
 
-	var insertId string
-
-	idRow := r.db.QueryRowContext(ctx, sql, args...)
-
-	if err := idRow.Scan(&insertId); err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
+	var insertId uuid.UUID
+	if err := r.db.GetContext(ctx, &insertId, sqlStr, args...); err != nil {
+		return uuid.New(), rep_utils.ExecuteSqlErr(err, op)
 	}
 
-	getSql, getArgs, err := builder.
-		Select(postsAllCol).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsIdCol: insertId}).
-		ToSql()
-	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in generate sql-query : %v", err)
-	}
-
-	row := r.db.QueryRowContext(ctx, getSql, getArgs...)
-
-	fmt.Println("1")
-
-	var createdPost models.Post
-	err = row.Scan(createdPost.GetPointersArray()...)
-
-	fmt.Println(createdPost)
-	if err != nil {
-		return uuid.New(), nil, fmt.Errorf("error in scan property from db : %v", err)
-	}
-
-	return createdPost.Id, &createdPost, nil
+	return insertId, nil
 }
 
 func (r *PostRepository) GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+	op := "PostRepository.getPost"
 
-	query := builder.
+	query := r.qBuilder.
 		Select(postsAllCol).
 		From(database.PostsTable).
 		Where(squirrel.Eq{postsIdCol: id})
 
-	sql, args, _ := query.ToSql()
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, rep_utils.GenerateSqlErr(err, op)
+	}
 
 	var post models.Post
 
-	row := r.db.QueryRowContext(ctx, sql, args...)
-	err := row.Scan(post.GetPointersArray()...)
-	if err != nil {
-		return nil, fmt.Errorf("can`t scan properties from db : %v", err)
+	if err := r.db.GetContext(ctx, &post, sql, args...); err != nil {
+		return nil, rep_utils.ExecuteSqlErr(err, op)
 	}
 
 	return &post, nil
 }
 
-func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, uint, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-	posts := make([]*models.Post, 0)
+func (r *PostRepository) GetUserPostsCount(ctx context.Context, userId uuid.UUID) (uint, error) {
+	op := "PostRepository.getUserPostsCount"
+
+	countQuery := r.qBuilder.
+		Select(postsSqlCount).
+		From(database.PostsTable).
+		Where(squirrel.Eq{postsUserIdCol: userId})
+
+	countSql, countArgs, err := countQuery.ToSql()
+	if err != nil {
+		return 0, rep_utils.GenerateSqlErr(err, op)
+	}
+
+	var totalCount uint
+
+	if err := r.db.GetContext(ctx, &totalCount, countSql, countArgs...); err != nil {
+		return 0, rep_utils.ExecuteSqlErr(err, op)
+	}
+
+	return totalCount, nil
+}
+
+func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, error) {
+	op := "PostRepository.getPostsByUserId"
 
 	offset := (getInfo.Page - 1) * getInfo.Size
 
-	query := builder.
+	query := r.qBuilder.
 		Select(postsAllCol).
 		From(database.PostsTable).
 		Where(squirrel.Eq{postsUserIdCol: getInfo.UserId}).
 		Limit(uint64(getInfo.Size)).
 		Offset(uint64(offset))
 
-	sql, args, err := query.ToSql()
+	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
+		return nil, rep_utils.GenerateSqlErr(err, op)
 	}
 
-	rows, err := r.db.QueryContext(ctx, sql, args...)
-	if err != nil {
-		return posts, 0, fmt.Errorf("error in quey for db: %v", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var post models.Post
-
-		err := rows.Scan(post.GetPointersArray()...)
-		if err != nil {
-			return posts, 0, fmt.Errorf("error in parse post from db: %v", err)
-		}
-
-		posts = append(posts, &post)
+	posts := make([]*models.Post, 0)
+	if err := r.db.SelectContext(ctx, &posts, sqlStr, args...); err != nil {
+		return nil, rep_utils.ExecuteSqlErr(err, op)
 	}
 
-	countQuery := builder.
-		Select(postsSqlCount).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsUserIdCol: getInfo.UserId})
-
-	countSql, countArgs, err := countQuery.ToSql()
-	if err != nil {
-		return posts, 0, fmt.Errorf("error in generate sql-query : %v", err)
-	}
-
-	var totalCount uint
-
-	countRow := r.db.QueryRowContext(ctx, countSql, countArgs...)
-	if err := countRow.Scan(&totalCount); err != nil {
-		return nil, 0, fmt.Errorf("can`t scan properties from db : %v", err)
-	}
-
-	return posts, totalCount, nil
+	return posts, nil
 }
 
-func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) error {
+	op := "PostRepository.deletePost"
 
-	query := builder.
+	query := r.qBuilder.
 		Delete(database.PostsTable).
 		Where(squirrel.Eq{postsIdCol: id})
 
-	sql, args, err := query.ToSql()
+	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("error in generate sql-query : %v", err)
+		return rep_utils.GenerateSqlErr(err, op)
 	}
 
-	getSql, getArgs, err := builder.Select(postsAllCol).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsIdCol: id}).
-		ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("error in generate sql-query : %v", err)
+	if _, err := r.db.ExecContext(ctx, sqlStr, args...); err != nil {
+		return rep_utils.ExecuteSqlErr(err, op)
 	}
 
-	var post models.Post
-	getRow := r.db.QueryRowContext(ctx, getSql, getArgs...)
-	err = getRow.Scan(post.GetPointersArray()...)
-	if err != nil {
-		return nil, fmt.Errorf("error in scan property from db : %v", err)
-	}
-
-	rows, err := r.db.QueryContext(ctx, sql, args...)
-	if err != nil {
-		return nil, fmt.Errorf("error in execute sql-query : %v", err)
-	}
-	defer rows.Close()
-
-	return &post, nil
+	return nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) (*models.Post, error) {
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) error {
+	op := "PostRepository.updatePost"
 
-	query := builder.
+	query := r.qBuilder.
 		Update(database.PostsTable).
-		Where("id = ?", updateData.Id)
+		Where("id = ?", updateData.Id) //TODO
 
 	for _, item := range updateData.UpdateData {
 		if item.Name == postsIdCol || item.Name == postsUserIdCol {
@@ -223,58 +171,35 @@ func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories
 		query = query.Set(item.Name, item.Value)
 	}
 
-	sql, args, err := query.ToSql()
+	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("error in generate sql-query : %v", err)
+		return rep_utils.GenerateSqlErr(err, op)
 	}
 
-	_, err = r.db.ExecContext(ctx, sql, args...)
-	if err != nil {
-		return nil, fmt.Errorf("error in execute sql-query : %v", err)
-	}
-
-	queryGetPost := builder.
-		Select(postsAllCol).
-		From(database.PostsTable).
-		Where("id = ?", updateData.Id)
-	sqlGetPost, argsGetPost, _ := queryGetPost.ToSql()
-
-	row := r.db.QueryRowContext(ctx, sqlGetPost, argsGetPost...)
-
-	var post models.Post
-	err = row.Scan(post.GetPointersArray()...)
-	if err != nil {
-		return nil, fmt.Errorf("error scanning updated post : %v", err)
-	}
-
-	return &post, nil
-}
-
-func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx database.Transaction) error { //TODO
-	executor := r.getExecutor(tx)
-	builder := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-
-	query := builder.
-		Delete(database.PostsTable).
-		Where(squirrel.Eq{postsUserIdCol: userId})
-
-	toSql, args, err := query.ToSql()
-	if err != nil {
-		return fmt.Errorf("error in generate toSql-query : %v", err)
-	}
-
-	_, err = executor.ExecContext(ctx, toSql, args...)
-	if err != nil {
-		return fmt.Errorf("error in execute toSql-query : %v", err)
+	if _, err = r.db.ExecContext(ctx, sqlStr, args...); err != nil {
+		return rep_utils.ExecuteSqlErr(err, op)
 	}
 
 	return nil
 }
 
-func (r *PostRepository) getExecutor(tx *sql.Tx) database.Executor { //TODO: ПОДУМАТЬ ОБ ЭТОМ, ПИЗДАТЕНЬКО ВЫШЛО
-	if tx == nil {
-		return r.db
+func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx database.Transaction) error {
+	op := "PostRepository.deleteUserPosts"
+
+	executor := rep_utils.GetExecutor(r.db, tx)
+
+	query := r.qBuilder.
+		Delete(database.PostsTable).
+		Where(squirrel.Eq{postsUserIdCol: userId})
+
+	toSql, args, err := query.ToSql()
+	if err != nil {
+		return rep_utils.GenerateSqlErr(err, op)
 	}
 
-	return tx
+	if _, err = executor.ExecContext(ctx, toSql, args...); err != nil {
+		return rep_utils.ExecuteSqlErr(err, op)
+	}
+
+	return nil
 }
