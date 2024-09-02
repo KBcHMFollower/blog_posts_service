@@ -118,13 +118,13 @@ func (UnimplementedPostServiceServer) GetPost(context.Context, *GetPostRequest) 
 	return nil, status.Errorf(codes.Unimplemented, "method GetPost not implemented")
 }
 func (UnimplementedPostServiceServer) DeletePost(context.Context, *DeletePostRequest) (*DeletePostResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeletePost not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedPostServiceServer) UpdatePost(context.Context, *UpdatePostRequest) (*UpdatePostResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdatePost not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 func (UnimplementedPostServiceServer) CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreatePost not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
 }
 func (UnimplementedPostServiceServer) mustEmbedUnimplementedPostServiceServer() {}
 

@@ -9,12 +9,12 @@ import (
 )
 
 type PostCreator interface {
-	CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, error)
+	Create(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, error)
 }
 
 type PostGetter interface {
-	GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, error)
+	Post(ctx context.Context, id uuid.UUID) (*models.Post, error)
+	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostsInfo) ([]*models.Post, error)
 	GetUserPostsCount(ctx context.Context, userId uuid.UUID) (uint, error)
 }
 

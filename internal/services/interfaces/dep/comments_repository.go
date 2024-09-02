@@ -8,19 +8,19 @@ import (
 )
 
 type CommentsGetter interface {
-	GetPostCommentsCount(ctx context.Context, postId uuid.UUID) (uint, error)
-	GetComment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error)
-	GetPostComments(ctx context.Context, postId uuid.UUID, size uint64, page uint64) ([]*models.Comment, error)
+	Count(ctx context.Context, postId uuid.UUID) (uint, error)
+	Comment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error)
+	Comments(ctx context.Context, postId uuid.UUID, size uint64, page uint64) ([]*models.Comment, error)
 }
 
 type CommentsCreator interface {
-	CreateComment(ctx context.Context, createData repositories_transfer.CreateCommentInfo) (uuid.UUID, error)
+	Create(ctx context.Context, createData repositories_transfer.CreateCommentInfo) (uuid.UUID, error)
 }
 
 type CommentsUpdater interface {
-	UpdateComment(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) error
+	Update(ctx context.Context, updateData repositories_transfer.UpdateCommentInfo) error
 }
 
 type CommentsDeleter interface {
-	DeleteComment(ctx context.Context, commentId uuid.UUID) error
+	Delete(ctx context.Context, commentId uuid.UUID) error
 }

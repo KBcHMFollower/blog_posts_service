@@ -7,10 +7,7 @@ import (
 )
 
 const (
-	PostsTable        = "posts"
-	CommentsTable     = "comments"
-	AmqpMessagesTable = "amqp_messages"
-	RequestKeysTable  = "request_keys"
+	RequestKeysTable = "request_keys"
 )
 
 type DBWrapper interface {

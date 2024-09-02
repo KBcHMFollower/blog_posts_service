@@ -3,15 +3,17 @@ package repository
 import (
 	"context"
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
-	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
+	repositoriestransfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
-	rep_utils "github.com/KBcHMFollower/blog_posts_service/internal/repository/lib"
+	reputils "github.com/KBcHMFollower/blog_posts_service/internal/repository/lib"
 	"github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
 )
 
-// TODO: ДОВЫНОСИТЬ ВСЕ В КОНСТАНТЫ
-// TODO: ВРЯД ЛИ НОРМ БРАТЬ СРАЗУ ВСЕ ПОЛЯ С ТАБЛИЦЫ
+const (
+	postsTable = "posts"
+)
+
 const (
 	postsIdCol            = "id"
 	postsUserIdCol        = "user_id"
@@ -35,9 +37,7 @@ func NewPostRepository(db database.DBWrapper) *PostRepository {
 	}
 }
 
-func (r *PostRepository) CreatePost(ctx context.Context, createData repositories_transfer.CreatePostInfo) (uuid.UUID, error) {
-	op := "PostRepository.createPost"
-
+func (r *PostRepository) Create(ctx context.Context, createData repositoriestransfer.CreatePostInfo) (uuid.UUID, error) {
 	post := models.CreatePost(
 		createData.UserId,
 		createData.Title,
@@ -45,160 +45,124 @@ func (r *PostRepository) CreatePost(ctx context.Context, createData repositories
 		createData.ImagesContent)
 
 	query := r.qBuilder.
-		Insert(database.PostsTable).
+		Insert(postsTable).
 		SetMap(map[string]interface{}{
 			postsIdCol:            post.Id,
 			postsUserIdCol:        post.UserId,
 			postsTitleCol:         post.Title,
 			postsTextContentCol:   post.TextContent,
 			postsImagesContentCol: post.ImagesContent,
-			postsCreatedAtCol:     post.CreatedAt,
 		}).
 		Suffix("RETURNING \"id\"")
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return uuid.New(), rep_utils.GenerateSqlErr(err, op)
+		return uuid.New(), reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
 	var insertId uuid.UUID
 	if err := r.db.GetContext(ctx, &insertId, sqlStr, args...); err != nil {
-		return uuid.New(), rep_utils.ExecuteSqlErr(err, op)
+		return uuid.New(), reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return insertId, nil
 }
 
-func (r *PostRepository) GetPost(ctx context.Context, id uuid.UUID) (*models.Post, error) {
-	op := "PostRepository.getPost"
-
+func (r *PostRepository) Post(ctx context.Context, info repositoriestransfer.GetPostInfo) (*models.Post, error) {
 	query := r.qBuilder.
 		Select(postsAllCol).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsIdCol: id})
+		From(postsTable).
+		Where(squirrel.Eq(reputils.ConvertMapKeysToStrings(info.Condition)))
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return nil, rep_utils.GenerateSqlErr(err, op)
+		return nil, reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
 	var post models.Post
 
 	if err := r.db.GetContext(ctx, &post, sql, args...); err != nil {
-		return nil, rep_utils.ExecuteSqlErr(err, op)
+		return nil, reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return &post, nil
 }
 
-func (r *PostRepository) GetUserPostsCount(ctx context.Context, userId uuid.UUID) (uint, error) {
-	op := "PostRepository.getUserPostsCount"
-
+func (r *PostRepository) Count(ctx context.Context, info repositoriestransfer.GetPostsCountInfo) (uint, error) {
 	countQuery := r.qBuilder.
 		Select(postsSqlCount).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsUserIdCol: userId})
+		From(postsTable).
+		Where(squirrel.Eq(reputils.ConvertMapKeysToStrings(info.Condition)))
 
 	countSql, countArgs, err := countQuery.ToSql()
 	if err != nil {
-		return 0, rep_utils.GenerateSqlErr(err, op)
+		return 0, reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
 	var totalCount uint
 
 	if err := r.db.GetContext(ctx, &totalCount, countSql, countArgs...); err != nil {
-		return 0, rep_utils.ExecuteSqlErr(err, op)
+		return 0, reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return totalCount, nil
 }
 
-func (r *PostRepository) GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostByUserIdInfo) ([]*models.Post, error) {
-	op := "PostRepository.getPostsByUserId"
-
+func (r *PostRepository) Posts(ctx context.Context, getInfo repositoriestransfer.GetPostsInfo) ([]*models.Post, error) {
 	offset := (getInfo.Page - 1) * getInfo.Size
 
 	query := r.qBuilder.
 		Select(postsAllCol).
-		From(database.PostsTable).
-		Where(squirrel.Eq{postsUserIdCol: getInfo.UserId}).
+		From(postsTable).
+		Where(squirrel.Eq(reputils.ConvertMapKeysToStrings(getInfo.Condition))).
 		Limit(uint64(getInfo.Size)).
 		Offset(uint64(offset))
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return nil, rep_utils.GenerateSqlErr(err, op)
+		return nil, reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
 	posts := make([]*models.Post, 0)
 	if err := r.db.SelectContext(ctx, &posts, sqlStr, args...); err != nil {
-		return nil, rep_utils.ExecuteSqlErr(err, op)
+		return nil, reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return posts, nil
 }
 
-func (r *PostRepository) DeletePost(ctx context.Context, id uuid.UUID) error {
-	op := "PostRepository.deletePost"
+func (r *PostRepository) Delete(ctx context.Context, info repositoriestransfer.DeletePostsInfo, tx database.Transaction) error {
+	executor := reputils.GetExecutor(r.db, tx)
 
 	query := r.qBuilder.
-		Delete(database.PostsTable).
-		Where(squirrel.Eq{postsIdCol: id})
+		Delete(postsTable).
+		Where(squirrel.Eq(reputils.ConvertMapKeysToStrings(info.Condition)))
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return rep_utils.GenerateSqlErr(err, op)
+		return reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
-	if _, err := r.db.ExecContext(ctx, sqlStr, args...); err != nil {
-		return rep_utils.ExecuteSqlErr(err, op)
+	if _, err := executor.ExecContext(ctx, sqlStr, args...); err != nil {
+		return reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return nil
 }
 
-func (r *PostRepository) UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) error {
-	op := "PostRepository.updatePost"
-
+func (r *PostRepository) Update(ctx context.Context, updateData repositoriestransfer.UpdatePostInfo) error {
 	query := r.qBuilder.
-		Update(database.PostsTable).
-		Where("id = ?", updateData.Id) //TODO
-
-	for _, item := range updateData.UpdateData {
-		if item.Name == postsIdCol || item.Name == postsUserIdCol {
-			continue
-		}
-		query = query.Set(item.Name, item.Value)
-	}
+		Update(postsTable).
+		Where(squirrel.Eq(reputils.ConvertMapKeysToStrings(updateData.Condition))).
+		SetMap(reputils.ConvertMapKeysToStrings(updateData.UpdateData))
 
 	sqlStr, args, err := query.ToSql()
 	if err != nil {
-		return rep_utils.GenerateSqlErr(err, op)
+		return reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
 	if _, err = r.db.ExecContext(ctx, sqlStr, args...); err != nil {
-		return rep_utils.ExecuteSqlErr(err, op)
-	}
-
-	return nil
-}
-
-func (r *PostRepository) DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx database.Transaction) error {
-	op := "PostRepository.deleteUserPosts"
-
-	executor := rep_utils.GetExecutor(r.db, tx)
-
-	query := r.qBuilder.
-		Delete(database.PostsTable).
-		Where(squirrel.Eq{postsUserIdCol: userId})
-
-	toSql, args, err := query.ToSql()
-	if err != nil {
-		return rep_utils.GenerateSqlErr(err, op)
-	}
-
-	if _, err = executor.ExecContext(ctx, toSql, args...); err != nil {
-		return rep_utils.ExecuteSqlErr(err, op)
+		return reputils.ReturnExecuteSqlError(ctx, err)
 	}
 
 	return nil

@@ -5,15 +5,6 @@ import (
 )
 
 type Request struct {
-	Id             uuid.UUID
-	IdempotencyKey uuid.UUID
-	Status         string
-}
-
-func (r *Request) GetPointersArray() []interface{} {
-	return []interface{}{
-		&r.Id,
-		&r.IdempotencyKey,
-		&r.Status,
-	}
+	Id             uuid.UUID `db:"id"`
+	IdempotencyKey uuid.UUID `db:"idempotency_key"`
 }

@@ -1,12 +1,9 @@
 package models
 
 import (
-	"fmt"
-	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Post struct {
@@ -26,52 +23,5 @@ func CreatePost(userId uuid.UUID, title string, textContent string, imageContent
 		Title:         title,
 		TextContent:   textContent,
 		ImagesContent: imageContent,
-	}
-}
-
-func (p *Post) ConvertToProto() *postsv1.Post {
-	return &postsv1.Post{
-		Id:            p.Id.String(),
-		UserId:        p.UserId.String(),
-		Title:         p.Title,
-		TextContent:   p.TextContent,
-		ImagesContent: p.ImagesContent,
-		Likes:         p.Likes,
-		CreatedAt:     timestamppb.New(p.CreatedAt),
-	}
-}
-
-func ConvertFromProto(protoPost *postsv1.Post) (*Post, error) {
-
-	postUUID, err := uuid.Parse(protoPost.GetId())
-	if err != nil {
-		return nil, fmt.Errorf("can`t parse post_id in uuid: %v", err)
-	}
-
-	userUUID, err := uuid.Parse(protoPost.GetUserId())
-	if err != nil {
-		return nil, fmt.Errorf("can`t parse user_id in uuid: %v", err)
-	}
-
-	return &Post{
-		Id:            postUUID,
-		UserId:        userUUID,
-		Title:         protoPost.GetTitle(),
-		TextContent:   protoPost.GetTextContent(),
-		ImagesContent: protoPost.ImagesContent,
-		Likes:         protoPost.GetLikes(),
-		CreatedAt:     protoPost.GetCreatedAt().AsTime(),
-	}, nil
-}
-
-func (p *Post) GetPointersArray() []interface{} {
-	return []interface{}{
-		&p.Id,
-		&p.UserId,
-		&p.Title,
-		&p.TextContent,
-		&p.ImagesContent,
-		&p.Likes,
-		&p.CreatedAt,
 	}
 }

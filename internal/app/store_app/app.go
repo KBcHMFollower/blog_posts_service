@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/KBcHMFollower/blog_posts_service/internal/config"
 	"github.com/KBcHMFollower/blog_posts_service/internal/database"
+	"github.com/KBcHMFollower/blog_posts_service/internal/database/postgres"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"log"
@@ -15,7 +17,7 @@ type PostgresStore struct {
 	Store         database.DBWrapper
 	migrationPath string
 	db            *sql.DB
-} //TODO: ПЕРЕПИСАТЬ МИГРАТОР, ЭТО НЕ НОРМ
+}
 
 type StoreApp struct {
 	PostgresStore *PostgresStore
@@ -24,13 +26,16 @@ type StoreApp struct {
 func New(postgresConnectionInfo config.Storage) (*StoreApp, error) {
 	db, err := sql.Open("postgres", postgresConnectionInfo.ConnectionString)
 	if err != nil {
-		return nil, fmt.Errorf("error in process db connection : %w", err)
+		return nil, ctxerrors.Wrap(fmt.Sprintf("error in process db connection `postgres`"), err)
 	}
-	sqlxDb := sqlx.NewDb(db, "postgres")
+	sqlxDb, err := sqlx.Open("postgres", postgresConnectionInfo.ConnectionString)
+	if err != nil {
+		return nil, ctxerrors.Wrap(fmt.Sprintf("error in process db connection `postgres`"), err)
+	}
 
 	return &StoreApp{
 		PostgresStore: &PostgresStore{
-			Store:         &database.DBDriver{sqlxDb},
+			Store:         &postgres.DBDriver{sqlxDb},
 			migrationPath: postgresConnectionInfo.MigrationPath,
 			db:            db,
 		},

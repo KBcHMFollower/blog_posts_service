@@ -1,10 +1,13 @@
 package rabbitmqclient
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	amqpclient "github.com/KBcHMFollower/blog_posts_service/internal/clients/amqp"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
+	"github.com/KBcHMFollower/blog_posts_service/internal/logger"
 	"github.com/streadway/amqp"
-	"log"
 )
 
 const (
@@ -13,43 +16,53 @@ const (
 	UserPostsDeletedQueue = amqpclient.PostsDeletedEventKey
 )
 
+const (
+	queueLogKey   = "queue"
+	messageLogKey = "message"
+)
+
 type RabbitMQClient struct {
 	pubConn        *amqp.Connection
 	pubCh          *amqp.Channel
 	consConn       *amqp.Connection
 	consCh         *amqp.Channel
 	sendersFactory amqpclient.AmqpSenderFactory
+	log            logger.Logger
+	ctx            context.Context
 }
 
-func NewRabbitMQClient(addr string) (*RabbitMQClient, error) {
+func NewRabbitMQClient(addr string, log logger.Logger) (amqpclient.AmqpClient, error) {
+	ctx := context.Background()
+	ctx = logger.UpdateLoggerCtx(ctx, "worker-name", "rabbitmq")
+
 	pConn, err := amqp.Dial(addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to connect to RabbitMQ", err))
 	}
 	cConn, err := amqp.Dial(addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to RabbitMQ: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to connect to RabbitMQ", err))
 	}
 
 	pCh, err := pConn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open a channel: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to open a channel", err))
 	}
 	cCh, err := cConn.Channel()
 	if err != nil {
-		return nil, fmt.Errorf("failed to open a channel: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to open a channel", err))
 	}
 
 	if err := DeclareExchanges(pCh); err != nil {
-		return nil, fmt.Errorf("failed to declare exchanges: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to declare exchanges", err))
 	}
 	if err := DeclareQueues(pCh); err != nil {
-		return nil, fmt.Errorf("failed to declare queues: %s", err)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("failed to declare queues", err))
 	}
 
 	sendersFactory := NewSendersStore(pCh)
 
-	return &RabbitMQClient{pubConn: cConn, consConn: cConn, pubCh: pCh, consCh: cCh, sendersFactory: sendersFactory}, nil
+	return &RabbitMQClient{ctx: context.Background(), pubConn: cConn, consConn: cConn, pubCh: pCh, consCh: cCh, sendersFactory: sendersFactory, log: log}, nil
 }
 
 func (rc *RabbitMQClient) Close() error {
@@ -69,14 +82,14 @@ func (rc *RabbitMQClient) Close() error {
 	return nil
 }
 
-func (rc *RabbitMQClient) Publish(eventType string, body []byte) error {
+func (rc *RabbitMQClient) Publish(ctx context.Context, eventType string, body []byte) error {
 	sender, err := rc.sendersFactory.GetSender(eventType)
 	if err != nil {
-		return fmt.Errorf("failed to get sender for event %s: %s", eventType, err)
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap(fmt.Sprintf("failed to get sender for event %s", eventType), err))
 	}
 
 	if err := sender.Send(body); err != nil {
-		return fmt.Errorf("failed to send event %s: %s", eventType, err)
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap(fmt.Sprintf("failed to send event %s", eventType), err))
 	}
 
 	return nil
@@ -92,25 +105,63 @@ func (rc *RabbitMQClient) Consume(queueName string, handler amqpclient.AmqpHandl
 		false,
 		nil)
 	if err != nil {
-		return fmt.Errorf("failed to register a consumer for queue %s: %s", queueName, err)
+		return ctxerrors.WrapCtx(rc.ctx, ctxerrors.Wrap(fmt.Sprintf("failed to register a consumer for queue %s", queueName), err))
 	}
 
+	rc.log.InfoContext(rc.ctx, "start consuming messages", queueLogKey, queueName)
+
 	go func() {
+
+		ctx, cancel := context.WithCancel(rc.ctx)
+		ctx = logger.UpdateLoggerCtx(ctx, queueLogKey, queueName)
+
 		for d := range del {
-			if err := handler(d.Body); err != nil {
-				log.Printf("failed to handle a message from queue %s: %s", queueName, err)
-				if err := d.Nack(false, false); err != nil {
-					log.Printf("failed to nack: %s", err)
+			select {
+			case <-rc.ctx.Done():
+				cancel()
+				return
+			default:
+
+				rc.log.InfoContext(ctx, "received a message", messageLogKey, string(d.Body))
+				if err := handler(ctx, d.Body); err != nil {
+					rc.log.ErrorContext(ctxerrors.ErrorCtx(ctx, err), "failed to handle a message from queue", logger.ErrKey, err.Error())
+					if err := d.Nack(false, false); err != nil {
+						rc.log.ErrorContext(ctxerrors.ErrorCtx(ctx, err), "failed to nack", logger.ErrKey, err.Error())
+					}
+					continue
 				}
-				continue
+				rc.log.InfoContext(ctx, "finished consuming a message from queue")
+				if err := d.Ack(false); err != nil {
+					rc.log.ErrorContext(ctxerrors.ErrorCtx(ctx, err), "failed to ack", logger.ErrKey, err)
+				}
 			}
-			if err := d.Ack(false); err != nil {
-				log.Printf("failed to ack: %s", err)
-			}
+
 		}
+		cancel()
 	}()
 
 	return nil
+}
+
+func (rc *RabbitMQClient) Stop() error { //TODO: МОЖНО В STOP CTX ПРОКИДЫВАТЬ ДЛЯ ЛОГГЕРА
+	var resErr error = nil
+
+	if err := rc.pubCh.Close(); err != nil {
+		resErr = errors.Join(resErr, fmt.Errorf("failed to close RabbitMQ channel: %s", err))
+	}
+	if err := rc.pubConn.Close(); err != nil {
+		resErr = errors.Join(resErr, fmt.Errorf("failed to close RabbitMQ connection: %s", err))
+	}
+	if err := rc.consCh.Close(); err != nil {
+		resErr = errors.Join(resErr, fmt.Errorf("failed to close RabbitMQ channel: %s", err))
+	}
+	if err := rc.consConn.Close(); err != nil {
+		resErr = errors.Join(resErr, fmt.Errorf("failed to close RabbitMQ connection: %s", err))
+	}
+
+	rc.ctx.Done()
+
+	return resErr
 }
 
 func DeclareExchanges(ch *amqp.Channel) error {

@@ -60,7 +60,7 @@ func (g *PostService) GetUserPosts(ctx context.Context, getInfo *services_transf
 		slog.String("op", op),
 	)
 
-	posts, err := g.postRepository.GetPostsByUserId(ctx, repositories_transfer.GetPostByUserIdInfo{
+	posts, err := g.postRepository.GetPostsByUserId(ctx, repositories_transfer.GetPostsInfo{
 		UserId: getInfo.UserId,
 		Size:   uint32(getInfo.Size),
 		Page:   uint32(getInfo.Page),
@@ -87,7 +87,7 @@ func (g *PostService) GetPost(ctx context.Context, getInfo *services_transfer.Ge
 		slog.String("op", op),
 	)
 
-	post, err := g.postRepository.GetPost(ctx, getInfo.PostId)
+	post, err := g.postRepository.Post(ctx, getInfo.PostId)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to get post for post %d: %v", getInfo.PostId, err))
 		return nil, domain.AddOpInErr(err, op)
@@ -99,7 +99,7 @@ func (g *PostService) GetPost(ctx context.Context, getInfo *services_transfer.Ge
 }
 
 func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_transfer.DeletePostInfo) error {
-	op := "PostService.DeletePost"
+	op := "PostService.Delete"
 
 	log := g.log.With(
 		slog.String("op", op),
@@ -114,12 +114,12 @@ func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_trans
 }
 
 func (g *PostService) CreatePost(ctx context.Context, createInfo *services_transfer.CreatePostInfo) (*services_transfer.CreatePostResult, error) {
-	op := "PostService.CreatePost"
+	op := "PostService.Create"
 	log := g.log.With(
 		slog.String("op", op),
 	)
 
-	postId, err := g.postRepository.CreatePost(ctx, repositories_transfer.CreatePostInfo{
+	postId, err := g.postRepository.Create(ctx, repositories_transfer.CreatePostInfo{
 		UserId:        createInfo.UserId,
 		Title:         createInfo.Title,
 		TextContent:   createInfo.TextContent,
@@ -129,7 +129,7 @@ func (g *PostService) CreatePost(ctx context.Context, createInfo *services_trans
 		log.Error(fmt.Sprintf("failed to create post for user %d: %v", createInfo.UserId, err))
 		return nil, domain.AddOpInErr(err, op)
 	}
-	post, err := g.postRepository.GetPost(ctx, postId)
+	post, err := g.postRepository.Post(ctx, postId)
 	if err != nil {
 		log.Error(fmt.Sprintf("failed to get post for post %d: %v", postId, err))
 		return nil, domain.AddOpInErr(err, op)
@@ -142,7 +142,7 @@ func (g *PostService) CreatePost(ctx context.Context, createInfo *services_trans
 }
 
 func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_transfer.UpdatePostInfo) (*services_transfer.UpdatePostResult, error) {
-	op := "PostService.CreatePost"
+	op := "PostService.Create"
 
 	log := g.log.With(
 		slog.String("op", op),

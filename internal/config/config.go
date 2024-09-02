@@ -1,7 +1,6 @@
 package config
 
 import (
-	"flag"
 	"os"
 	"time"
 
@@ -29,34 +28,24 @@ type Storage struct {
 	MigrationPath    string `yaml:"migration_path" env-required:"true"`
 }
 
-func MustLoad() *Config {
+func MustLoad(configPath string) *Config {
+	if configPath == "" {
+		panic("config path is empty")
+	}
+
+	return MustLoadPath(configPath)
+}
+
+func MustLoadPath(configPath string) *Config {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		panic("config file does not exist: " + configPath)
+	}
+
 	var cfg Config
 
-	configPath := fetchConfig()
-	if configPath == "" {
-		panic("the path to the config is not specified")
-	}
-
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		panic("config file is not exists")
-	}
-
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		panic("problem reading config")
+		panic("cannot read config: " + err.Error())
 	}
 
 	return &cfg
-}
-
-func fetchConfig() string {
-	var configPath string
-
-	flag.StringVar(&configPath, "config", "", "path to config")
-	flag.Parse()
-
-	if configPath == "" {
-		configPath = os.Getenv("CONFIG_PATH")
-	}
-
-	return configPath
 }

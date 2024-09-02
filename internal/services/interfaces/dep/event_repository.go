@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type RequestsCreator interface {
-	Create(ctx context.Context, info repositoriestransfer.CreateRequestInfo, tx database.Transaction) error
+type EventGetter interface {
+	Event(ctx context.Context, eventId uuid.UUID) (*models.EventInfo, error)
 }
 
-type RequestsGetter interface {
-	Get(ctx context.Context, key uuid.UUID, tx database.Transaction) (*models.Request, error)
+type EventCreator interface {
+	Create(ctx context.Context, info repositoriestransfer.CreateEventInfo, tx database.Transaction) error
 }

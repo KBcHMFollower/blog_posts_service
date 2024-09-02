@@ -2,6 +2,7 @@ package grpcapp
 
 import (
 	"fmt"
+	handlers_dep "github.com/KBcHMFollower/blog_posts_service/internal/handlers/dep"
 	grpcserver2 "github.com/KBcHMFollower/blog_posts_service/internal/handlers/grpc"
 	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"log/slog"
@@ -16,15 +17,23 @@ type GRPCApp struct {
 	GRPCServer *grpc.Server
 }
 
-func New(port int, log *slog.Logger, postService *commentservice.PostService, commService *commentservice.CommentsService) *GRPCApp {
-	cleanGrpcServer := grpc.NewServer()
-	grpcserver2.RegisterPostServer(cleanGrpcServer, postService)
-	grpcserver2.RegisterCommentsServer(cleanGrpcServer, commService)
+func New(
+	port int,
+	log *slog.Logger,
+	postService *commentservice.PostService,
+	commService *commentservice.CommentsService,
+	validator handlers_dep.Validator,
+	interceptor grpc.ServerOption,
+) *GRPCApp {
+	gRpcServer := grpc.NewServer(interceptor)
+
+	grpcserver2.RegisterPostServer(gRpcServer, postService)
+	grpcserver2.RegisterCommentsServer(gRpcServer, commService)
 
 	return &GRPCApp{
 		log:        log,
 		port:       port,
-		GRPCServer: cleanGrpcServer,
+		GRPCServer: gRpcServer,
 	}
 }
 
@@ -53,12 +62,5 @@ func (g *GRPCApp) Run() error {
 }
 
 func (g *GRPCApp) Stop() {
-	const op = "GRPCApp.Stop"
-	log := g.log.With(
-		slog.String("op", op),
-	)
-
-	log.Info("Server is trying to stop")
-
 	g.GRPCServer.GracefulStop()
 }

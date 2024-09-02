@@ -2,20 +2,46 @@ package repositories_transfer
 
 import "github.com/google/uuid"
 
+type PostConditionTarget string
+type PostUpdateTarget string
+
+const (
+	PostIdCondition     PostConditionTarget = "id"
+	PostUserIdCondition PostConditionTarget = "user_id"
+)
+
+const (
+	PostTitleUpdateTarget         PostUpdateTarget = "title"
+	PostTxtContentUpdateTarget    PostUpdateTarget = "text_content"
+	PostImagesContentUpdateTarget PostUpdateTarget = "images_content" //todo: лайки должны быть инкрементом
+)
+
 type PostUpdateFieldInfo struct {
 	Name  string
 	Value string
 }
 
-type GetPostByUserIdInfo struct {
-	UserId uuid.UUID
-	Size   uint32
-	Page   uint32
+type GetPostsInfo struct {
+	Condition map[PostConditionTarget]any
+	Size      uint32
+	Page      uint32
 }
 
 type UpdatePostInfo struct {
-	Id         uuid.UUID
-	UpdateData []*CommentUpdateFieldInfo
+	Condition  map[PostConditionTarget]any
+	UpdateData map[PostUpdateTarget]any
+}
+
+type DeletePostsInfo struct {
+	Condition map[PostConditionTarget]any
+}
+
+type GetPostInfo struct {
+	Condition map[PostConditionTarget]any
+}
+
+type GetPostsCountInfo struct {
+	Condition map[PostConditionTarget]any
 }
 
 type CreatePostInfo struct {

@@ -30,13 +30,11 @@ CREATE TABLE IF NOT EXISTS amqp_messages
     status TEXT NOT NULL  DEFAULT 'waiting',
     retry_count INT DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_done ON transaction_outbox(status);
+CREATE INDEX IF NOT EXISTS idx_done ON amqp_messages(status);
 
 CREATE TABLE IF NOT EXISTS request_keys
 (
     id UUID PRIMARY KEY ,
-    idempotency_key UUID NOT NULL ,
-    payload JSON NULL,
-    status TEXT NOT NULL DEFAULT 'in_work'
+    idempotency_key UUID NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_ikey ON requests_keys(idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_ikey ON request_keys(idempotency_key);

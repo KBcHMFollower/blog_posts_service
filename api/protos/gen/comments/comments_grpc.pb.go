@@ -112,19 +112,19 @@ type UnimplementedCommentServiceServer struct {
 }
 
 func (UnimplementedCommentServiceServer) GetPostComments(context.Context, *GetPostCommentsRequest) (*GetPostCommentsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPostComments not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Comments not implemented")
 }
 func (UnimplementedCommentServiceServer) GetComment(context.Context, *GetCommentRequest) (*GetCommentResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetComment not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Comment not implemented")
 }
 func (UnimplementedCommentServiceServer) DeleteComment(context.Context, *DeleteCommentRequest) (*DeleteCommentResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteComment not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedCommentServiceServer) UpdateComment(context.Context, *UpdateCommentRequest) (*UpdateCommentResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateComment not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 func (UnimplementedCommentServiceServer) CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateComment not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
 }
 func (UnimplementedCommentServiceServer) mustEmbedUnimplementedCommentServiceServer() {}
 
