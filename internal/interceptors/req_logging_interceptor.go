@@ -2,7 +2,7 @@ package interceptors
 
 import (
 	"context"
-	"github.com/KBcHMFollower/blog_user_service/internal/logger"
+	"github.com/KBcHMFollower/blog_posts_service/internal/logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"time"

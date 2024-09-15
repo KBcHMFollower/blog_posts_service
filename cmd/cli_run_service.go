@@ -27,7 +27,7 @@ func init() {
 
 			log.Info("server try to get up!", "env", cfg.Env)
 
-			webApp := app.New(cfg, log)
+			webApp := app.New(log, cfg)
 
 			go webApp.Run()
 

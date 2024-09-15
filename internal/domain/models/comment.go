@@ -3,7 +3,6 @@ package models
 import (
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
 
@@ -12,7 +11,7 @@ type Comment struct {
 	PostId    uuid.UUID
 	UserId    uuid.UUID
 	Content   string
-	Likes     uint32
+	Likes     uint64
 	CreatedAt time.Time
 }
 
@@ -28,12 +27,11 @@ func CreateComment(postId uuid.UUID, userId uuid.UUID, content string) *Comment 
 
 func (c *Comment) ConvertToProto() *commentsv1.Comment {
 	return &commentsv1.Comment{
-		Id:        c.Id.String(),
-		UserId:    c.UserId.String(),
-		PostId:    c.PostId.String(),
-		Content:   c.Content,
-		Likes:     int32(c.Likes),
-		CreatedAt: timestamppb.New(c.CreatedAt),
+		Id:      c.Id.String(),
+		UserId:  c.UserId.String(),
+		PostId:  c.PostId.String(),
+		Content: c.Content,
+		Likes:   c.Likes,
 	}
 }
 

@@ -2,15 +2,10 @@ package services_transfer
 
 import (
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-type CommUpdateFieldInfo struct {
-	Name  string
-	Value string
-}
 
 type GetCommentInfo struct {
 	CommId uuid.UUID
@@ -18,8 +13,8 @@ type GetCommentInfo struct {
 
 type GetPostCommentsInfo struct {
 	PostId uuid.UUID
-	Size   int32
-	Page   int32
+	Size   uint64
+	Page   uint64
 }
 
 type DeleteCommentInfo struct {
@@ -28,7 +23,7 @@ type DeleteCommentInfo struct {
 
 type UpdateCommentInfo struct {
 	CommId       uuid.UUID
-	UpdateFields []CommUpdateFieldInfo
+	UpdateFields map[repositories_transfer.CommentUpdateTarget]any
 }
 
 type CreateCommentInfo struct {
@@ -42,11 +37,11 @@ type CommentResult struct {
 	PostId  uuid.UUID
 	UserId  uuid.UUID
 	Content string
-	Likes   int32
+	Likes   uint64
 }
 
 type GetPostCommentsResult struct {
-	TotalCount int32
+	TotalCount uint64
 	Comments   []CommentResult
 }
 
@@ -70,7 +65,7 @@ func ConvertCommentFromModel(model *models.Comment) CommentResult {
 		PostId:  model.PostId,
 		UserId:  model.UserId,
 		Content: model.Content,
-		Likes:   int32(model.Likes),
+		Likes:   model.Likes,
 	}
 }
 
@@ -86,13 +81,12 @@ func ConvertCommentsArrayFromModels(models []*models.Comment) []CommentResult {
 
 func (c *CommentResult) ToProto() *commentsv1.Comment {
 	return &commentsv1.Comment{
-		Id:        c.CommId.String(),
-		PostId:    c.PostId.String(),
-		UserId:    c.UserId.String(),
-		Content:   c.Content,
-		Likes:     int32(c.Likes),
-		CreatedAt: &timestamppb.Timestamp{},
-	} //TODO: дата зоздания елиента ебать не должна
+		Id:      c.CommId.String(),
+		PostId:  c.PostId.String(),
+		UserId:  c.UserId.String(),
+		Content: c.Content,
+		Likes:   c.Likes,
+	}
 }
 
 func CommentsArrayProto(c []CommentResult) []*commentsv1.Comment {

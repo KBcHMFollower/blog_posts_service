@@ -2,8 +2,8 @@ package interceptors
 
 import (
 	"context"
-	servicestransfer "github.com/KBcHMFollower/blog_user_service/internal/domain/layers_TOs/services"
-	"github.com/KBcHMFollower/blog_user_service/internal/interceptors/interfaces/dep"
+	servicestransfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
+	"github.com/KBcHMFollower/blog_posts_service/internal/interceptors/interfaces/dep"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

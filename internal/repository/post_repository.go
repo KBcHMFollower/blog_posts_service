@@ -88,7 +88,7 @@ func (r *PostRepository) Post(ctx context.Context, info repositoriestransfer.Get
 	return &post, nil
 }
 
-func (r *PostRepository) Count(ctx context.Context, info repositoriestransfer.GetPostsCountInfo) (uint, error) {
+func (r *PostRepository) Count(ctx context.Context, info repositoriestransfer.GetPostsCountInfo) (uint64, error) {
 	countQuery := r.qBuilder.
 		Select(postsSqlCount).
 		From(postsTable).
@@ -99,7 +99,7 @@ func (r *PostRepository) Count(ctx context.Context, info repositoriestransfer.Ge
 		return 0, reputils.ReturnGenerateSqlError(ctx, err)
 	}
 
-	var totalCount uint
+	var totalCount uint64
 
 	if err := r.db.GetContext(ctx, &totalCount, countSql, countArgs...); err != nil {
 		return 0, reputils.ReturnExecuteSqlError(ctx, err)

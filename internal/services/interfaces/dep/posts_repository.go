@@ -2,7 +2,7 @@ package services_dep
 
 import (
 	"context"
-	"database/sql"
+	"github.com/KBcHMFollower/blog_posts_service/internal/database"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
@@ -13,16 +13,15 @@ type PostCreator interface {
 }
 
 type PostGetter interface {
-	Post(ctx context.Context, id uuid.UUID) (*models.Post, error)
-	GetPostsByUserId(ctx context.Context, getInfo repositories_transfer.GetPostsInfo) ([]*models.Post, error)
-	GetUserPostsCount(ctx context.Context, userId uuid.UUID) (uint, error)
+	Post(ctx context.Context, info repositories_transfer.GetPostInfo) (*models.Post, error)
+	Posts(ctx context.Context, getInfo repositories_transfer.GetPostsInfo) ([]*models.Post, error)
+	Count(ctx context.Context, info repositories_transfer.GetPostsCountInfo) (uint64, error)
 }
 
 type PostDeleter interface {
-	DeletePost(ctx context.Context, id uuid.UUID) error
-	DeleteUserPosts(ctx context.Context, userId uuid.UUID, tx *sql.Tx) error
+	Delete(ctx context.Context, info repositories_transfer.DeletePostsInfo, tx database.Transaction) error
 }
 
 type PostUpdater interface {
-	UpdatePost(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) (*models.Post, error)
+	Update(ctx context.Context, updateData repositories_transfer.UpdatePostInfo) error
 }

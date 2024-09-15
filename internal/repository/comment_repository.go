@@ -80,7 +80,7 @@ func (r *CommentRepository) Comment(ctx context.Context, info repositories_trans
 	return &comment, nil
 }
 
-func (r *CommentRepository) Count(ctx context.Context, info repositories_transfer.GetCommentsCountInfo) (uint, error) {
+func (r *CommentRepository) Count(ctx context.Context, info repositories_transfer.GetCommentsCountInfo) (uint64, error) {
 	query := r.qBuilder.
 		Select(commentsSqlCount).
 		From(commentsTableName).
@@ -91,7 +91,7 @@ func (r *CommentRepository) Count(ctx context.Context, info repositories_transfe
 		return 0, rep_utils.ReturnGenerateSqlError(ctx, err)
 	}
 
-	var count uint
+	var count uint64
 	if err := r.db.GetContext(ctx, &count, sqlStr, args...); err != nil {
 		return 0, rep_utils.ReturnExecuteSqlError(ctx, err)
 	}

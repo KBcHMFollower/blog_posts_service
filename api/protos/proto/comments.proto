@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-import "google/protobuf/timestamp.proto";
-
 package blog;
 
 option  go_package ="blog.comments;commentsv1";
@@ -19,13 +17,7 @@ message Comment {
   string post_id = 2;
   string user_id = 3;
   string content = 4;
-  int32 likes = 5;
-  google.protobuf.Timestamp created_at = 7;
-}
-
-message CommUpdateItem{
-  string name = 1;
-  string value = 2;
+  uint64 likes = 5;
 }
 
 message getCommentRequest{
@@ -38,12 +30,12 @@ message getCommentResponse{
 
 message getPostCommentsRequest{
   string post_id = 1;
-  int32 size = 2;
-  int32 page = 3;
+  uint64 size = 2;
+  uint64 page = 3;
 }
 message getPostCommentsResponse{
   repeated Comment comments = 1;
-  int32 total_count = 2;
+  uint64 total_count = 2;
 }
 
 message deleteCommentRequest{
@@ -56,7 +48,7 @@ message deleteCommentResponse{
 
 message updateCommentRequest{
   string id = 1;
-  repeated CommUpdateItem update_data = 2;
+  map<string, string> update_data = 2;
 }
 
 message updateCommentResponse{

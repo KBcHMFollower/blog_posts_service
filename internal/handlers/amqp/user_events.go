@@ -22,7 +22,7 @@ func (uh *UserEventsHandler) HandleUserDeletedEvent(message []byte) error {
 	}
 
 	if err := uh.postsService.DeleteUserPosts(context.TODO(), services_transfer.DeleteUserPostInfo{
-		UserId: userMessage.UserId,
+		UserId: userMessage.User.Id,
 	}); err != nil {
 		return fmt.Errorf("delete user posts error: %w", err)
 	}

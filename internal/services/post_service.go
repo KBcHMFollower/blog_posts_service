@@ -3,47 +3,46 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	amqpclient "github.com/KBcHMFollower/blog_posts_service/internal/clients/amqp"
 	"github.com/KBcHMFollower/blog_posts_service/internal/clients/amqp/messages"
-	"github.com/KBcHMFollower/blog_posts_service/internal/domain"
-	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
-	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
-	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
+	repositoriestransfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
+	servicestransfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
+	"github.com/KBcHMFollower/blog_posts_service/internal/logger"
+	servicesdep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
 	"github.com/google/uuid"
-	"log/slog"
 )
 
 type PostsStore interface {
-	services_dep.PostCreator
-	services_dep.PostDeleter
-	services_dep.PostGetter
-	services_dep.PostUpdater
+	servicesdep.PostCreator
+	servicesdep.PostDeleter
+	servicesdep.PostGetter
+	servicesdep.PostUpdater
 }
 
 type RequestStore interface {
-	services_dep.RequestsCreator
-	services_dep.RequestsGetter
+	servicesdep.RequestsCreator
+	servicesdep.RequestsGetter
 }
 
 type EventStore interface {
-	services_dep.EventCreator
+	servicesdep.EventCreator
 }
 
 type PostService struct {
 	postRepository     PostsStore
 	requestsRepository RequestStore
 	eventsRepository   EventStore
-	txCreator          services_dep.TransactionCreator
-	log                *slog.Logger
+	txCreator          servicesdep.TransactionCreator
+	log                logger.Logger
 }
 
 func NewPostsService(
 	postRepository PostsStore,
 	requestsRepository RequestStore,
 	eventsRepository EventStore,
-	txCreator services_dep.TransactionCreator,
-	log *slog.Logger,
+	txCreator servicesdep.TransactionCreator,
+	log logger.Logger,
 ) *PostService {
 	return &PostService{
 		postRepository:     postRepository,
@@ -54,189 +53,197 @@ func NewPostsService(
 	}
 }
 
-func (g *PostService) GetUserPosts(ctx context.Context, getInfo *services_transfer.GetUserPostsInfo) (*services_transfer.GetUserPostsResult, error) {
-	op := "PostService.GetUserPosts"
-	log := g.log.With(
-		slog.String("op", op),
-	)
-
-	posts, err := g.postRepository.GetPostsByUserId(ctx, repositories_transfer.GetPostsInfo{
-		UserId: getInfo.UserId,
-		Size:   uint32(getInfo.Size),
-		Page:   uint32(getInfo.Page),
+func (g *PostService) GetUserPosts(ctx context.Context, getInfo *servicestransfer.GetUserPostsInfo) (*servicestransfer.GetUserPostsResult, error) {
+	posts, err := g.postRepository.Posts(ctx, repositoriestransfer.GetPostsInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostUserIdCondition: getInfo.UserId,
+		},
+		Page: getInfo.Page,
+		Size: getInfo.Size,
 	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get posts for user %d: %v", getInfo.UserId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get posts from repository", err))
 	}
-	total, err := g.postRepository.GetUserPostsCount(ctx, getInfo.UserId)
+	total, err := g.postRepository.Count(ctx, repositoriestransfer.GetPostsCountInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostUserIdCondition: getInfo.UserId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get posts count for user %d: %v", getInfo.UserId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get posts count from repository", err))
 	}
 
-	return &services_transfer.GetUserPostsResult{
-		Posts:      services_transfer.ConvertPostsArrayFromModel(posts),
-		TotalCount: int32(total),
+	return &servicestransfer.GetUserPostsResult{
+		Posts:      servicestransfer.ConvertPostsArrayFromModel(posts),
+		TotalCount: total,
 	}, nil
 }
 
-func (g *PostService) GetPost(ctx context.Context, getInfo *services_transfer.GetPostInfo) (*services_transfer.GetPostResult, error) {
-	op := "PostService.GetPost"
-	log := g.log.With(
-		slog.String("op", op),
-	)
-
-	post, err := g.postRepository.Post(ctx, getInfo.PostId)
+func (g *PostService) GetPost(ctx context.Context, getInfo *servicestransfer.GetPostInfo) (*servicestransfer.GetPostResult, error) {
+	post, err := g.postRepository.Post(ctx, repositoriestransfer.GetPostInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostIdCondition: getInfo.PostId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get post for post %d: %v", getInfo.PostId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get post from repository", err))
 	}
 
-	return &services_transfer.GetPostResult{
-		Post: services_transfer.ConvertPostFromModel(post),
+	return &servicestransfer.GetPostResult{
+		Post: servicestransfer.ConvertPostFromModel(post),
 	}, nil
 }
 
-func (g *PostService) DeletePost(ctx context.Context, deleteInfo *services_transfer.DeletePostInfo) error {
-	op := "PostService.Delete"
+func (g *PostService) DeletePost(ctx context.Context, deleteInfo *servicestransfer.DeletePostInfo) error {
+	logger.UpdateLoggerCtx(ctx, "post-id", deleteInfo.PostId)
+	g.log.InfoContext(ctx, "try to delete post", deleteInfo.PostId)
 
-	log := g.log.With(
-		slog.String("op", op),
-	)
-
-	if err := g.postRepository.DeletePost(ctx, deleteInfo.PostId); err != nil {
-		log.Error(fmt.Sprintf("failed to delete post %d: %v", deleteInfo.PostId, err))
-		return domain.AddOpInErr(err, op)
+	if err := g.postRepository.Delete(ctx, repositoriestransfer.DeletePostsInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostIdCondition: deleteInfo.PostId,
+		},
+	}, nil); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant delete posts from repository", err))
 	}
+
+	g.log.InfoContext(ctx, "post is deleted", deleteInfo.PostId)
 
 	return nil
 }
 
-func (g *PostService) CreatePost(ctx context.Context, createInfo *services_transfer.CreatePostInfo) (*services_transfer.CreatePostResult, error) {
-	op := "PostService.Create"
-	log := g.log.With(
-		slog.String("op", op),
-	)
+func (g *PostService) CreatePost(ctx context.Context, createInfo *servicestransfer.CreatePostInfo) (*servicestransfer.CreatePostResult, error) {
+	logger.UpdateLoggerCtx(ctx, "create-info", createInfo)
+	g.log.InfoContext(ctx, "trying create post")
 
-	postId, err := g.postRepository.Create(ctx, repositories_transfer.CreatePostInfo{
+	postId, err := g.postRepository.Create(ctx, repositoriestransfer.CreatePostInfo{
 		UserId:        createInfo.UserId,
 		Title:         createInfo.Title,
 		TextContent:   createInfo.TextContent,
 		ImagesContent: createInfo.ImagesContent,
 	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to create post for user %d: %v", createInfo.UserId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant create post in repository", err))
 	}
-	post, err := g.postRepository.Post(ctx, postId)
-	if err != nil {
-		log.Error(fmt.Sprintf("failed to get post for post %d: %v", postId, err))
-		return nil, domain.AddOpInErr(err, op)
-	}
-
-	return &services_transfer.CreatePostResult{
-		PostId: postId,
-		Post:   services_transfer.ConvertPostFromModel(post),
-	}, nil
-}
-
-func (g *PostService) UpdatePost(ctx context.Context, updateInfo *services_transfer.UpdatePostInfo) (*services_transfer.UpdatePostResult, error) {
-	op := "PostService.Create"
-
-	log := g.log.With(
-		slog.String("op", op),
-	)
-
-	updateItems := make([]*repositories_transfer.CommentUpdateFieldInfo, 0)
-
-	for _, item := range updateInfo.Fields {
-		updateItems = append(updateItems, &repositories_transfer.CommentUpdateFieldInfo{
-			Name:  item.Name,
-			Value: item.Value,
-		})
-	}
-
-	post, err := g.postRepository.UpdatePost(ctx, repositories_transfer.UpdatePostInfo{
-		Id:         updateInfo.PostId,
-		UpdateData: updateItems,
+	post, err := g.postRepository.Post(ctx, repositoriestransfer.GetPostInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostIdCondition: postId,
+		},
 	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to update post for post %d: %v", updateInfo.PostId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get post from repository", err))
 	}
 
-	return &services_transfer.UpdatePostResult{
-		PostId: post.Id,
-		Post:   services_transfer.ConvertPostFromModel(post),
+	g.log.InfoContext(ctx, "post is created", postId)
+
+	return &servicestransfer.CreatePostResult{
+		PostId: postId,
+		Post:   servicestransfer.ConvertPostFromModel(post),
 	}, nil
 }
 
-func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo services_transfer.DeleteUserPostInfo) (resErr error) { //TODO: СДЕЛАТЬ DEFER
-	op := "PostsService.deleteUserPosts"
+func (g *PostService) UpdatePost(ctx context.Context, updateInfo *servicestransfer.UpdatePostInfo) (*servicestransfer.UpdatePostResult, error) {
+	logger.UpdateLoggerCtx(ctx, "post-id", updateInfo.PostId)
+	logger.UpdateLoggerCtx(ctx, "update-fields", updateInfo.Fields)
 
-	tx, err := g.txCreator.BeginTx(ctx, nil)
+	g.log.InfoContext(ctx, "trying to update post")
+
+	if err := g.postRepository.Update(ctx, repositoriestransfer.UpdatePostInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostIdCondition: updateInfo.PostId,
+		},
+		UpdateData: updateInfo.Fields,
+	}); err != nil {
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant update posts from repository", err))
+	}
+
+	post, err := g.postRepository.Post(ctx, repositoriestransfer.GetPostInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostIdCondition: updateInfo.PostId,
+		},
+	})
 	if err != nil {
-		g.log.Error("can`t begin transaction :", err)
-		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
-			ctx,
-			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
-			err,
-		), op)
-	}
-	defer func() {
-
-	}()
-	//TODO: ОСТАНОВИЛСЯ ЗДЕСЬ
-	if err := g.postRepository.DeleteUserPosts(ctx, deleteInfo.UserId, tx); err != nil {
-		g.log.Error("can`t delete user from db :", err)
-		rbErr := tx.Rollback()
-		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
-			ctx,
-			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
-			fmt.Errorf("can`t delete user: %v; rollback err: %v", err, rbErr),
-		), op)
-		//TODO: не уверен, что ошибки так заворачиваются
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get post from repository", err))
 	}
 
-	if _, err := g.requestsRepository.Create(ctx, repositories_transfer.CreateRequestInfo{
-		Key: deleteInfo.EventId,
-	}, tx); err != nil {
-		g.log.Error("can`t create request from db :", err)
-		rbErr := tx.Rollback()
-		return domain.AddOpInErr(g.createPostDeleteFeedbackEvent(
-			ctx,
-			messages.PostsDeleted{Status: messages.Failed, EventId: deleteInfo.EventId},
-			fmt.Errorf("can`t delete user: %v; rollback err: %v", err, rbErr),
-		), op)
-	}
+	g.log.InfoContext(ctx, "post is updated", updateInfo.PostId)
 
-	if err := g.createPostDeleteFeedbackEvent(
-		ctx,
-		messages.PostsDeleted{Status: messages.Success, EventId: deleteInfo.EventId},
-		nil,
-	); err != nil {
-		log.Error("can`t create post delete request from db :", err)
-		return domain.AddOpInErr(err, op)
-	}
-	return nil
+	return &servicestransfer.UpdatePostResult{
+		PostId: post.Id,
+		Post:   servicestransfer.ConvertPostFromModel(post),
+	}, nil
 }
 
-func (g *PostService) createPostDeleteFeedbackEvent(ctx context.Context, message messages.PostsDeleted, outErr error) error { //TODO: ПОЧЕКАТЬ МОЖНО ЛИ ДАВАТЬ ЗНАЧЕНИЯ ПО УМОЛЧАНИЮ P.S: В РЕПОЗИТОРИЯХ ТОЖЕ САМОЕ
-	op := "PostsService.createPostDeleteFeedbackEvent"
+// todo: имеет смысл вынести в отдельный сервис
+func (g *PostService) DeleteUserPosts(ctx context.Context, deleteInfo servicestransfer.DeleteUserPostInfo) (resErr error) { //TODO: СДЕЛАТЬ DEFER
+	logger.UpdateLoggerCtx(ctx, "user-id", deleteInfo.UserId)
 
-	payload, err := json.Marshal(message)
-	if err != nil {
-		return domain.AddOpInErr(err, op)
+	g.log.InfoContext(ctx, "trying to delete user-posts")
+
+	//todo: нужна какая-то amqp-мидлвара для этого
+	if err := g.requestsRepository.Create(ctx, repositoriestransfer.CreateRequestInfo{
+		Key: deleteInfo.EventId,
+	}, nil); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant create request from repository", err))
 	}
 
-	if err := g.eventsRepository.Create(ctx, repositories_transfer.CreateEventInfo{
+	tx, err := g.txCreator.BeginTxCtx(ctx, nil)
+	if err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant begin transaction", err))
+	}
+	defer func() {
+		if resErr != nil {
+			if err := tx.Rollback(); err != nil {
+				resErr = ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant rollback transaction", err))
+			}
+
+			payload, err := json.Marshal(messages.PostsDeleted{
+				Status:  messages.Failed,
+				EventId: deleteInfo.EventId,
+			})
+			if err != nil {
+				resErr = ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant marshal post event", err))
+				return
+			}
+
+			if err := g.eventsRepository.Create(ctx, repositoriestransfer.CreateEventInfo{
+				EventId:   uuid.New(),
+				EventType: amqpclient.PostsDeletedEventKey,
+				Payload:   payload,
+			}, nil); err != nil {
+				resErr = ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant create post event", err))
+			}
+		}
+	}()
+
+	if err := g.postRepository.Delete(ctx, repositoriestransfer.DeletePostsInfo{
+		Condition: map[repositoriestransfer.PostConditionTarget]any{
+			repositoriestransfer.PostUserIdCondition: deleteInfo.UserId,
+		},
+	}, tx); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant delete user from repository", err))
+	}
+
+	payload, err := json.Marshal(messages.PostsDeleted{
+		Status:  messages.Success,
+		EventId: deleteInfo.EventId,
+	})
+	if err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant marshal post event", err))
+	}
+
+	if err := g.eventsRepository.Create(ctx, repositoriestransfer.CreateEventInfo{
 		EventId:   uuid.New(),
 		EventType: amqpclient.PostsDeletedEventKey,
 		Payload:   payload,
-	}, nil); err != nil {
-		return domain.AddOpInErr(err, op)
+	}, tx); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant create post event", err))
 	}
+
+	if err := tx.Commit(); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant commit transaction", err))
+	}
+
+	g.log.InfoContext(ctx, "user-posts is deleted")
 
 	return nil
 }

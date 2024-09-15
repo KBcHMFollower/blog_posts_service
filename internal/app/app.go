@@ -6,9 +6,15 @@ import (
 	"github.com/KBcHMFollower/blog_posts_service/internal/app/store_app"
 	"github.com/KBcHMFollower/blog_posts_service/internal/app/workers_app"
 	"github.com/KBcHMFollower/blog_posts_service/internal/config"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
+	"github.com/KBcHMFollower/blog_posts_service/internal/interceptors"
+	"github.com/KBcHMFollower/blog_posts_service/internal/lib/validators"
+	"github.com/KBcHMFollower/blog_posts_service/internal/logger"
 	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
+	"github.com/KBcHMFollower/blog_posts_service/internal/services/lib/circuid_breaker"
 	"github.com/KBcHMFollower/blog_posts_service/internal/workers"
-	"log/slog"
+	"google.golang.org/grpc"
+	"time"
 
 	grpcapp "github.com/KBcHMFollower/blog_posts_service/internal/app/grpc_app"
 	"github.com/KBcHMFollower/blog_posts_service/internal/repository"
@@ -22,17 +28,12 @@ type App struct {
 }
 
 func New(
-	log *slog.Logger,
+	log logger.Logger,
 	cfg *config.Config,
 ) *App {
-	//op := "App.NewCommentService"
-	//appLog := log.With(
-	//	slog.String("op", op),
-	//)
-
 	storeApp, err := store_app.New(cfg.Storage)
 	ContinueOrPanic(err)
-	amqpApp, err := amqpapp.New(cfg.RabbitMq)
+	amqpApp, err := amqpapp.NewAmqpApp(cfg.RabbitMq, log)
 	ContinueOrPanic(err)
 	workersApp := workers_app.New()
 
@@ -49,10 +50,46 @@ func New(
 		log,
 	)
 	commService := commentservice.NewCommentService(commRepository, log)
+	reqService := commentservice.NewRequestsService(reqRepository, log)
 
-	workersApp.AddWorker(workers.NewEventChecker(amqpApp.Client, eventRepository, log))
+	workersApp.AddWorker(workers.NewEventChecker(
+		amqpApp.Client,
+		eventRepository,
+		log,
+		storeApp.PostgresStore.Store,
+	))
 
-	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService, commService)
+	vldor, err := validators.NewValidator()
+	ContinueOrPanic(err)
+
+	circuitBreaker := circuid_breaker.NewCircuitBreaker().Configure(func(options *circuid_breaker.CBOptions) {
+		options.IgnorableErrors = []error{
+			ctxerrors.ErrNotFound,
+			ctxerrors.ErrUnauthorized,
+			ctxerrors.ErrConflict,
+			ctxerrors.ErrBadRequest,
+		}
+		options.OpenConditions = circuid_breaker.OpenCondition{
+			FailuresRate: 40,
+			TimeInterval: time.Duration(100),
+		}
+		options.CloseConditions = circuid_breaker.CloseCondition{
+			SuccessRate: 80,
+			Duration:    time.Duration(100),
+		}
+	})
+	circuitBreaker.OnChangeStateHook = func(from circuid_breaker.BreakerState, to circuid_breaker.BreakerState) {
+		log.Info("circuit breaker state changed", "from", from, "to", to)
+	}
+
+	interceptorsChain := grpc.ChainUnaryInterceptor(
+		interceptors.CircuitBreakerInterceptor(circuitBreaker),
+		interceptors.ErrorHandlerInterceptor(),
+		interceptors.ReqLoggingInterceptor(log),
+		interceptors.IdempotencyInterceptor(reqService),
+	)
+
+	GRPCApp := grpcapp.New(cfg.GRpc.Port, log, postService, commService, vldor, interceptorsChain)
 
 	return &App{
 		gRPCApp:    GRPCApp,

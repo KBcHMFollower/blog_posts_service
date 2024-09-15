@@ -12,7 +12,7 @@ type Post struct {
 	Title         string
 	TextContent   string
 	ImagesContent *string
-	Likes         int32
+	Likes         int64
 	CreatedAt     time.Time
 }
 

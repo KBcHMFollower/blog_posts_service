@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	postService "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"github.com/google/uuid"
@@ -12,10 +13,10 @@ import (
 
 type PostsServer struct {
 	postsv1.UnimplementedPostServiceServer
-	postService *postService.PostService
+	postService *postService.PostService //todo: интерфейс
 }
 
-func RegisterPostServer(server *grpc.Server, postService *postService.PostService) {
+func RegisterPostServer(server *grpc.Server, postService *postService.PostService) { //todo: интерфейс
 	postsv1.RegisterPostServiceServer(server, &PostsServer{postService: postService})
 }
 
@@ -36,7 +37,7 @@ func (g *PostsServer) GetUserPosts(ctx context.Context, req *postsv1.GetUserPost
 
 	return &postsv1.GetUserPostsResponse{
 		Posts:      services_transfer.ConvertPostArrayToProto(posts.Posts),
-		TotalCount: int32(posts.TotalCount),
+		TotalCount: posts.TotalCount,
 	}, nil
 }
 
@@ -83,12 +84,9 @@ func (g *PostsServer) UpdatePost(ctx context.Context, req *postsv1.UpdatePostReq
 		return nil, fmt.Errorf("invalid user id %s", req.Id)
 	}
 
-	var fields []services_transfer.UpdateUserFieldInfo = make([]services_transfer.UpdateUserFieldInfo, 0, len(req.UpdateData))
-	for _, item := range req.UpdateData {
-		fields = append(fields, services_transfer.UpdateUserFieldInfo{
-			Name:  item.Name,
-			Value: item.Value,
-		})
+	var fields map[repositories_transfer.PostUpdateTarget]any = make(map[repositories_transfer.PostUpdateTarget]any, len(req.UpdateData))
+	for k, v := range req.UpdateData {
+		fields[repositories_transfer.PostUpdateTarget(k)] = v
 	}
 
 	post, err := g.postService.UpdatePost(ctx, &services_transfer.UpdatePostInfo{

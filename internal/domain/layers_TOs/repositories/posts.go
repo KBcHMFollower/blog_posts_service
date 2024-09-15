@@ -23,8 +23,8 @@ type PostUpdateFieldInfo struct {
 
 type GetPostsInfo struct {
 	Condition map[PostConditionTarget]any
-	Size      uint32
-	Page      uint32
+	Size      uint64
+	Page      uint64
 }
 
 type UpdatePostInfo struct {

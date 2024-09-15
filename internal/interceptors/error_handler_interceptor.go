@@ -3,7 +3,7 @@ package interceptors
 import (
 	"context"
 	"errors"
-	ctxerrors "github.com/KBcHMFollower/blog_user_service/internal/domain/errors"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

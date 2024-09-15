@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
 	commentservice "github.com/KBcHMFollower/blog_posts_service/internal/services"
 	"github.com/google/uuid"
@@ -12,10 +13,10 @@ import (
 
 type CommentsServer struct {
 	commentsv1.UnimplementedCommentServiceServer
-	commService *commentservice.CommentsService
+	commService *commentservice.CommentsService //todo: интерфейс
 }
 
-func RegisterCommentsServer(server *grpc.Server, commService *commentservice.CommentsService) {
+func RegisterCommentsServer(server *grpc.Server, commService *commentservice.CommentsService) { //todo: интерфейс
 	commentsv1.RegisterCommentServiceServer(server, &CommentsServer{commService: commService})
 }
 
@@ -36,7 +37,7 @@ func (s *CommentsServer) GetPostComments(ctx context.Context, req *commentsv1.Ge
 
 	return &commentsv1.GetPostCommentsResponse{
 		Comments:   services_transfer.CommentsArrayProto(comments.Comments),
-		TotalCount: int32(comments.TotalCount),
+		TotalCount: comments.TotalCount,
 	}, nil
 }
 
@@ -54,7 +55,7 @@ func (s *CommentsServer) GetComment(ctx context.Context, req *commentsv1.GetComm
 	}
 
 	return &commentsv1.GetCommentResponse{
-		Comments: comm.Comment.ToProto(), //TODO: COMMENT
+		Comments: comm.Comment.ToProto(),
 	}, nil
 }
 
@@ -83,12 +84,9 @@ func (s *CommentsServer) UpdateComment(ctx context.Context, req *commentsv1.Upda
 		return nil, fmt.Errorf("error parsing post id: %w", err)
 	}
 
-	var fields = make([]services_transfer.CommUpdateFieldInfo, 0, len(req.UpdateData))
-	for _, item := range req.UpdateData {
-		fields = append(fields, services_transfer.CommUpdateFieldInfo{
-			Name:  item.Name,
-			Value: item.Value,
-		})
+	var fields = make(map[repositories_transfer.CommentUpdateTarget]any, len(req.UpdateData))
+	for k, v := range req.UpdateData {
+		fields[repositories_transfer.CommentUpdateTarget(k)] = v
 	}
 
 	comm, err := s.commService.UpdateComment(ctx, &services_transfer.UpdateCommentInfo{

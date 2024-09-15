@@ -2,6 +2,7 @@ package services_transfer
 
 import (
 	postsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/posts"
+	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	"github.com/KBcHMFollower/blog_posts_service/internal/domain/models"
 	"github.com/google/uuid"
 )
@@ -13,8 +14,8 @@ type UpdateUserFieldInfo struct {
 
 type GetUserPostsInfo struct {
 	UserId uuid.UUID
-	Size   int32
-	Page   int32
+	Size   uint64
+	Page   uint64
 }
 
 type GetPostInfo struct {
@@ -34,7 +35,7 @@ type CreatePostInfo struct {
 
 type UpdatePostInfo struct {
 	PostId uuid.UUID
-	Fields []UpdateUserFieldInfo
+	Fields map[repositories_transfer.PostUpdateTarget]any
 }
 
 type DeleteUserPostInfo struct {
@@ -48,12 +49,12 @@ type PostResult struct {
 	Title         string
 	TextContent   string
 	ImagesContent *string
-	Likes         int32
+	Likes         int64
 }
 
 type GetUserPostsResult struct {
 	Posts      []PostResult
-	TotalCount int32
+	TotalCount uint64
 }
 
 type GetPostResult struct {
@@ -99,7 +100,6 @@ func (p *PostResult) ToProto() *postsv1.Post {
 		TextContent:   p.TextContent,
 		ImagesContent: p.ImagesContent,
 		Likes:         p.Likes,
-		CreatedAt:     nil,
 	} //TODO: CreatedAt не нужно
 }
 

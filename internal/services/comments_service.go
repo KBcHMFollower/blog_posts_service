@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	commentsv1 "github.com/KBcHMFollower/blog_posts_service/api/protos/gen/comments"
-	"github.com/KBcHMFollower/blog_posts_service/internal/domain"
+	ctxerrors "github.com/KBcHMFollower/blog_posts_service/internal/domain/errors"
 	repositories_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/repositories"
 	services_transfer "github.com/KBcHMFollower/blog_posts_service/internal/domain/layers_TOs/services"
+	"github.com/KBcHMFollower/blog_posts_service/internal/logger"
 	services_dep "github.com/KBcHMFollower/blog_posts_service/internal/services/interfaces/dep"
-	"log/slog"
 )
 
 type CommentsStore interface {
@@ -20,10 +20,10 @@ type CommentsStore interface {
 
 type CommentsService struct {
 	commRep CommentsStore
-	log     *slog.Logger
+	log     logger.Logger
 }
 
-func NewCommentService(commReP CommentsStore, log *slog.Logger) *CommentsService {
+func NewCommentService(commReP CommentsStore, log logger.Logger) *CommentsService {
 	return &CommentsService{
 		commRep: commReP,
 		log:     log,
@@ -31,20 +31,24 @@ func NewCommentService(commReP CommentsStore, log *slog.Logger) *CommentsService
 }
 
 func (s *CommentsService) GetPostComments(ctx context.Context, getInfo *services_transfer.GetPostCommentsInfo) (*services_transfer.GetPostCommentsResult, error) {
-	op := "CommentsService.Comments"
-	log := s.log.With(
-		slog.String("op", op),
-	)
-
-	comments, err := s.commRep.Comments(ctx, getInfo.PostId, uint64(getInfo.Size), uint64(getInfo.Page))
+	comments, err := s.commRep.Comments(ctx, repositories_transfer.GetCommentsInfo{
+		Size: getInfo.Size,
+		Page: getInfo.Page,
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentPostIdConditionTarget: getInfo.PostId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get comments for post %d: %v", getInfo.PostId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get comments from repository", err))
 	}
-	total, err := s.commRep.Count(ctx, getInfo.PostId)
+
+	total, err := s.commRep.Count(ctx, repositories_transfer.GetCommentsCountInfo{
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentPostIdConditionTarget: getInfo.PostId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get comments count for post %d: %v", getInfo.PostId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get comments count from repository", err))
 	}
 
 	resComms := make([]*commentsv1.Comment, 0)
@@ -54,21 +58,19 @@ func (s *CommentsService) GetPostComments(ctx context.Context, getInfo *services
 		resComms = append(resComms, resPost)
 	}
 	return &services_transfer.GetPostCommentsResult{
-		TotalCount: int32(total),
+		TotalCount: total,
 		Comments:   services_transfer.ConvertCommentsArrayFromModels(comments),
 	}, nil
 }
 
 func (s *CommentsService) GetComment(ctx context.Context, getInfo *services_transfer.GetCommentInfo) (*services_transfer.GetCommentResult, error) {
-	op := "CommentsService.Comment"
-	log := s.log.With(
-		slog.String("op", op),
-	)
-
-	comment, err := s.commRep.Comment(ctx, getInfo.CommId)
+	comment, err := s.commRep.Comment(ctx, repositories_transfer.GetCommentInfo{
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentIdConditionTarget: getInfo.CommId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get comment for comment %d: %v", getInfo.CommId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get comment from repository", err))
 	}
 
 	return &services_transfer.GetCommentResult{
@@ -77,47 +79,47 @@ func (s *CommentsService) GetComment(ctx context.Context, getInfo *services_tran
 }
 
 func (s *CommentsService) DeleteComment(ctx context.Context, deleteInfo *services_transfer.DeleteCommentInfo) error {
-	op := "PostService.Delete"
+	logger.UpdateLoggerCtx(ctx, "comment-id", deleteInfo.CommId)
+	s.log.InfoContext(ctx, "try to delete comment")
 
-	log := s.log.With(
-		slog.String("op", op),
-	)
-
-	if err := s.commRep.Delete(ctx, deleteInfo.CommId); err != nil {
-		log.Error(fmt.Sprintf("failed to delete comment %d: %v", deleteInfo.CommId, err))
-		return domain.AddOpInErr(err, op)
+	if err := s.commRep.Delete(ctx, repositories_transfer.DeleteCommentInfo{
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentIdConditionTarget: deleteInfo.CommId,
+		},
+	}); err != nil {
+		return ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant delete comments from repository", err))
 	}
+
+	s.log.InfoContext(ctx, "comment is deleted")
 
 	return nil
 }
 
 func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *services_transfer.UpdateCommentInfo) (*services_transfer.UpdateCommentResult, error) {
-	op := "CommentsService.Update"
-	log := s.log.With(
-		slog.String("op", op),
-	)
-
-	updateItems := make([]*repositories_transfer.CommentUpdateFieldInfo, 0)
-
-	for _, item := range updateInfo.UpdateFields {
-		updateItems = append(updateItems, &repositories_transfer.CommentUpdateFieldInfo{
-			Name:  item.Name,
-			Value: item.Value,
-		})
-	}
+	logger.UpdateLoggerCtx(ctx, "comment-id", updateInfo.CommId)
+	logger.UpdateLoggerCtx(ctx, "update-data", updateInfo.UpdateFields)
+	s.log.InfoContext(ctx, "try to update comment")
 
 	if err := s.commRep.Update(ctx, repositories_transfer.UpdateCommentInfo{
-		Id:         updateInfo.CommId,
-		UpdateData: updateItems,
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentIdConditionTarget: updateInfo.CommId,
+		},
+		UpdateData: updateInfo.UpdateFields,
 	}); err != nil {
-		log.Error(fmt.Sprintf("failed to update comment %d: %v", updateInfo.CommId, err))
-		return nil, domain.AddOpInErr(err, op)
+		s.log.Error(fmt.Sprintf("failed to update comment %d: %v", updateInfo.CommId, err))
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant update comments in repository", err))
 	}
-	comm, err := s.commRep.Comment(ctx, updateInfo.CommId)
+
+	comm, err := s.commRep.Comment(ctx, repositories_transfer.GetCommentInfo{
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentIdConditionTarget: updateInfo.CommId,
+		},
+	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to get comment %d: %v", updateInfo.CommId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get comment from repository", err))
 	}
+
+	s.log.InfoContext(ctx, "comment is updated")
 
 	return &services_transfer.UpdateCommentResult{
 		CommId:  comm.Id,
@@ -126,21 +128,28 @@ func (s *CommentsService) UpdateComment(ctx context.Context, updateInfo *service
 }
 
 func (s *CommentsService) CreateComment(ctx context.Context, createInfo *services_transfer.CreateCommentInfo) (*services_transfer.CreateCommentResult, error) {
-	op := "CommentsService.Create"
-	log := s.log.With(
-		slog.String("op", op),
-	)
+	logger.UpdateLoggerCtx(ctx, "create-info", createInfo)
+	s.log.InfoContext(ctx, "try to create comment")
 
 	commId, err := s.commRep.Create(ctx, repositories_transfer.CreateCommentInfo{
 		PostId:  createInfo.PostId,
 		UserId:  createInfo.UserId,
-		Content: createInfo.Content, //TODO: ВРОДЕ ЕЩЕ КАРТИНКИ МОЖНО
+		Content: createInfo.Content,
 	})
 	if err != nil {
-		log.Error(fmt.Sprintf("failed to create comment %d: %v", createInfo.PostId, err))
-		return nil, domain.AddOpInErr(err, op)
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant create comments in repository", err))
 	}
-	comm, err := s.commRep.Comment(ctx, commId)
+
+	comm, err := s.commRep.Comment(ctx, repositories_transfer.GetCommentInfo{
+		Condition: map[repositories_transfer.CommentConditionTarget]interface{}{
+			repositories_transfer.CommentIdConditionTarget: commId,
+		},
+	})
+	if err != nil {
+		return nil, ctxerrors.WrapCtx(ctx, ctxerrors.Wrap("cant get comment from repository", err))
+	}
+
+	s.log.InfoContext(ctx, "comment is created")
 
 	return &services_transfer.CreateCommentResult{
 		CommId:  commId,

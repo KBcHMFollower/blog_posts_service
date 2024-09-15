@@ -8,9 +8,9 @@ import (
 )
 
 type CommentsGetter interface {
-	Count(ctx context.Context, postId uuid.UUID) (uint, error)
-	Comment(ctx context.Context, commentId uuid.UUID) (*models.Comment, error)
-	Comments(ctx context.Context, postId uuid.UUID, size uint64, page uint64) ([]*models.Comment, error)
+	Count(ctx context.Context, info repositories_transfer.GetCommentsCountInfo) (uint64, error)
+	Comment(ctx context.Context, info repositories_transfer.GetCommentInfo) (*models.Comment, error)
+	Comments(ctx context.Context, info repositories_transfer.GetCommentsInfo) ([]*models.Comment, error)
 }
 
 type CommentsCreator interface {
@@ -22,5 +22,5 @@ type CommentsUpdater interface {
 }
 
 type CommentsDeleter interface {
-	Delete(ctx context.Context, commentId uuid.UUID) error
+	Delete(ctx context.Context, info repositories_transfer.DeleteCommentInfo) error
 }
